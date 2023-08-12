@@ -41,5 +41,5 @@ print(f"average normalized dists {sum(normalized_dists)/len(normalized_dists)}\n
 print(dist_dataframe.loc[dist_dataframe["normalized dists"].idxmax()])
 
 
-plot = ggplot(dist_dataframe, aes(x="normalized dists")) + geom_histogram(bins=50)
+plot = ggplot(dist_dataframe, aes(x="normalized dists")) + geom_histogram(bins=100)
 print(plot)
