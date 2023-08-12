@@ -1,8 +1,11 @@
 # analyses
 
+from plotnine import ggplot, aes, geom_histogram
 from levenshteindist import lev2
 import pandas as pd
 import csv
+
+# LEVENSHTEIN DISTANCE >>>
 
 dists = []
 normalized_dists = []
@@ -24,6 +27,7 @@ with open("ipadataset.csv") as f:
         dists.append(dist)
         normalized_dists.append(normalized)
 
+
 d = {"original" : sents, "dists" : dists, "normalized dists" : normalized_dists}
 dist_dataframe = pd.DataFrame(data=d)
 
@@ -37,4 +41,5 @@ print(f"average normalized dists {sum(normalized_dists)/len(normalized_dists)}\n
 print(dist_dataframe.loc[dist_dataframe["normalized dists"].idxmax()])
 
 
-
+plot = ggplot(dist_dataframe, aes(x="normalized dists")) + geom_histogram(bins=50)
+print(plot)
