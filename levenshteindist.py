@@ -26,7 +26,3 @@ def lev2(a, b):
             lev[r, c] = min(lev[r, c-1] + 1, lev[r-1, c] + 1, lev[r-1, c-1] + cost)
 
     return lev[r, c]
-
-    
-print(lev2("neja paeru mahendhranu sonnaa", "nejamaana paeru mahendhra endru sonnaa"))
-
