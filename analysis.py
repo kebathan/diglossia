@@ -63,9 +63,9 @@ d_a2 = {"original" : sents, "dists" : dists_a2, "normalized dists" : normalized_
 df_a2 = pd.DataFrame(data=d_a2)
 
 
-print("max dist: " + str(max(dists_aa)))
-print(f"max normalized dist: {max(normalized_dists_aa)}")
-print(df_aa.loc[df_aa["normalized dists"].idxmax()])
+# print("max dist: " + str(max(dists_aa)))
+# print(f"max normalized dist: {max(normalized_dists_aa)}")
+# print(df_aa.loc[df_aa["normalized dists"].idxmax()])
 
 print("\nbetween two annotators:\n-----------")
 print(f"average dist {sum(dists_aa)/len(dists_aa)}")
