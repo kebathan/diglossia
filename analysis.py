@@ -34,10 +34,10 @@ with open("regdataset.csv") as f:
         normalized_aa = dist_aa/max(len(annotator1), len(annotator2))
 
         dist_a1 = lev2(transliterated, annotator1)
-        normalized_a1 = dist_aa/max(len(transliterated), len(annotator1))
+        normalized_a1 = dist_a1/max(len(transliterated), len(annotator1))
 
         dist_a2 = lev2(transliterated, annotator2)
-        normalized_a2 = dist_aa/max(len(transliterated), len(annotator2))
+        normalized_a2 = dist_a2/max(len(transliterated), len(annotator2))
 
 
         # append distances to lists
@@ -51,7 +51,7 @@ with open("regdataset.csv") as f:
 
         dists_a2.append(dist_a2)
         normalized_dists_a2.append(normalized_a2)
-
+        
 
 d_aa = {"original" : sents, "dists" : dists_aa, "normalized dists" : normalized_dists_aa}
 df_aa = pd.DataFrame(data=d_aa)
