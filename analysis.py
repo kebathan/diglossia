@@ -5,9 +5,14 @@ from levenshteindist import lev2
 import pandas as pd
 import csv
 
+from nltk.translate.bleu_score import sentence_bleu
+
 # LEVENSHTEIN DISTANCE >>>
 
 sents = []
+
+ann1 = []
+ann2 = []
 
 dists_aa = []
 normalized_dists_aa = []
@@ -28,6 +33,8 @@ with open("regdataset.csv") as f:
         annotator1 = row["colloquial: annotator 1"]
         annotator2 = row["colloquial: annotator 2"]
 
+        ann1.append(annotator1)
+        ann2.append(annotator2)
 
         # get regular and normalized levenshtein distances between each pair
         dist_aa = lev2(annotator1, annotator2)
@@ -62,6 +69,8 @@ df_a1 = pd.DataFrame(data=d_a1)
 d_a2 = {"original" : sents, "dists" : dists_a2, "normalized dists" : normalized_dists_a2}
 df_a2 = pd.DataFrame(data=d_a2)
 
+data = {"original" : sents, "annotator 1" : ann1, "annotator 2" : ann2}
+dataset = pd.DataFrame(data=data)
 
 # print("max dist: " + str(max(dists_aa)))
 # print(f"max normalized dist: {max(normalized_dists_aa)}")
@@ -88,3 +97,14 @@ print(plot1)
 
 plot2 = ggplot(df_a2, aes(x="normalized dists")) + geom_histogram(bins=100) + ggtitle("between transliteration + annotator 2")
 print(plot2)
+
+
+# BLEU SCORE >>>
+
+# test_og = dataset.iloc[0]["original"]
+# test_ann1 = dataset.iloc[0]["annotator 1"]
+# test_ann2 = dataset.iloc[0]["annotator 2"]
+
+# tests = [test_og.split(), test_ann1.split(), test_ann2.split()]
+
+# print('BLEU score -> {}'.format(sentence_bleu(tests, "seenivaasan thayaarichaaru.".split())))
