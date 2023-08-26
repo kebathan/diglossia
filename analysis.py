@@ -5,7 +5,7 @@ from levenshteindist import lev2
 import pandas as pd
 import csv
 
-from sacrebleu.metrics import BLEU, CHRF, TER
+from sacrebleu.metrics import BLEU, CHRF, TER   
 
 # LEVENSHTEIN DISTANCE >>>
 def levenshtein():
