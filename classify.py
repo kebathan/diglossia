@@ -9,9 +9,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 import pandas as pd
 from collections import defaultdict
+import numpy as np
 
 def featurise(sents: list[str], char_n_max: int = 3, word_n_max: int = 3):
     """Featurise a list of sentences into a list of lists of n-grams."""
+
+    # clean sents (remove punctuation, etc.)
+    sents = [''.join([x for x in sent.lower().replace(' ', '_') if x not in '.,']) for sent in sents]
 
     # label to id and id to label
     label_to_id = defaultdict(lambda: len(label_to_id))
@@ -29,8 +33,8 @@ def featurise(sents: list[str], char_n_max: int = 3, word_n_max: int = 3):
     for sent in sents:
         word_ngrams.append([])
         for n in range(1, word_n_max + 1):
-            for i in range(len(sent.split()) - n + 1):
-                word_ngrams[-1].append(label_to_id["w_" + " ".join(sent.split()[i:i+n])])
+            for i in range(len(sent.split('_')) - n + 1):
+                word_ngrams[-1].append(label_to_id["w#" + "_".join(sent.split()[i:i+n])])
     
     # convert n-grams to counts
     features = []
@@ -41,7 +45,12 @@ def featurise(sents: list[str], char_n_max: int = 3, word_n_max: int = 3):
         for ngram in word_ngrams[i]:
             features[-1][ngram] += 1
     
-    return features
+    # make id to label
+    id_to_label = {}
+    for label in label_to_id:
+        id_to_label[label_to_id[label]] = label
+    
+    return features, label_to_id, id_to_label
 
 
 def train_model():
@@ -57,7 +66,7 @@ def train_model():
     y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
 
     # featurise
-    X = featurise(X_raw, char_n_max=3, word_n_max=1)
+    X, label_to_id, id_to_label = featurise(X_raw, char_n_max=3, word_n_max=1)
 
     # split into train and test sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
@@ -73,11 +82,22 @@ def train_model():
     print("Number of mislabeled points out of a total %d points : %d" % (len(X_test), (y_test != y_pred).sum()))
 
     # print first couple predictions
-    for i in range(10):
+    print("\nFirst couple predictions:")
+    for i in range(3):
         print(X_raw[i])
         print("Predicted: " + y_pred[i])
         print("Actual: " + y_test[i])
         print()
+    
+    # print most informative features
+    # Find the features with the largest differences in means between classes
+    mean_diffs = gnb.theta_[0, :] - gnb.theta_[1, :]
+    abs_mean_diffs = np.abs(mean_diffs)
+    sorted_mean_diffs = np.argsort(abs_mean_diffs)[::-1]
+
+    print("Most informative features (positive = colloquial):")
+    for i in range(30):
+        print(f"{id_to_label[sorted_mean_diffs[i]]:<20} {mean_diffs[sorted_mean_diffs[i]]:>8.4f}")
 
 def main():
     train_model()
