@@ -23,7 +23,7 @@ def levenshtein():
     dists_a2 = []
     normalized_dists_a2 = []
 
-    with open("regdataset.csv") as f:
+    with open("data/regdataset.csv") as f:
 
         reader = csv.DictReader(f)
         
