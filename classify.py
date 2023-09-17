@@ -11,7 +11,7 @@ import pandas as pd
 from collections import defaultdict
 import numpy as np
 
-def featurise(sents: list[str], char_n_max: int = 3, word_n_max: int = 3):
+def featurise(sents, char_n_max: int = 3, word_n_max: int = 3):
     """Featurise a list of sentences into a list of lists of n-grams."""
 
     # clean sents (remove punctuation, etc.)
