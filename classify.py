@@ -34,7 +34,7 @@ def featurise(sents, char_n_max: int = 3, word_n_max: int = 3):
         word_ngrams.append([])
         for n in range(1, word_n_max + 1):
             for i in range(len(sent.split('_')) - n + 1):
-                word_ngrams[-1].append(label_to_id["w#" + "_".join(sent.split()[i:i+n])])
+                word_ngrams[-1].append(label_to_id["w#" + "_".join(sent.split('_')[i:i+n])])
     
     # convert n-grams to counts
     features = []
@@ -66,7 +66,7 @@ def train_model():
     y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
 
     # featurise
-    X, label_to_id, id_to_label = featurise(X_raw, char_n_max=3, word_n_max=1)
+    X, label_to_id, id_to_label = featurise(X_raw, char_n_max=0, word_n_max=1)
 
     # split into train and test sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
