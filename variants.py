@@ -52,7 +52,8 @@ def vowel_orth(text, vowels):
 
     vows = {"ee" : "ii",
             "oo" : "uu",
-            "aa" : "a"}
+            "aa" : "a",
+            "ae" : "e"}
     
     for vow in vowels:
         while text.lower().find(vow) != -1:
