@@ -10,15 +10,25 @@ from sklearn.naive_bayes import GaussianNB
 import pandas as pd
 from collections import defaultdict
 import numpy as np
+import pickle
 
-def featurise(sents, char_n_max: int = 3, word_n_max: int = 3):
+def featurise(
+    sents: list[str],
+    char_n_max: int = 3,
+    word_n_max: int = 3,
+    label_to_id: dict[str, int] = None,
+    id_to_label: dict[int, str] = None
+):
     """Featurise a list of sentences into a list of lists of n-grams."""
 
     # clean sents (remove punctuation, etc.)
     sents = [''.join([x for x in sent.lower().replace(' ', '_') if x not in '.,']) for sent in sents]
 
     # label to id and id to label
-    label_to_id = defaultdict(lambda: len(label_to_id))
+    provided_labels = True
+    if label_to_id is None:
+        provided_labels = False
+        label_to_id = defaultdict(lambda: len(label_to_id))
 
     # make char n-grams
     char_ngrams = []
@@ -26,7 +36,10 @@ def featurise(sents, char_n_max: int = 3, word_n_max: int = 3):
         char_ngrams.append([])
         for n in range(1, char_n_max + 1):
             for i in range(len(sent) - n + 1):
-                char_ngrams[-1].append(label_to_id[sent[i:i+n]])
+                key = sent[i:i+n]
+                if provided_labels and key not in label_to_id:
+                    continue
+                char_ngrams[-1].append(label_to_id[key])
     
     # make word n-grams
     word_ngrams = []
@@ -35,7 +48,10 @@ def featurise(sents, char_n_max: int = 3, word_n_max: int = 3):
         word_ngrams.append([])
         for n in range(1, word_n_max + 1):
             for i in range(len(sent_split) - n + 1):
-                word_ngrams[-1].append(label_to_id["w#" + "_".join(sent_split[i:i+n])])
+                key = "w#" + "_".join(sent_split[i:i+n])
+                if provided_labels and key not in label_to_id:
+                    continue
+                word_ngrams[-1].append(label_to_id[key])
     
     # convert n-grams to counts
     features = []
@@ -47,14 +63,15 @@ def featurise(sents, char_n_max: int = 3, word_n_max: int = 3):
             features[-1][ngram] += 1
     
     # make id to label
-    id_to_label = {}
-    for label in label_to_id:
-        id_to_label[label_to_id[label]] = label
+    if id_to_label is None:
+        id_to_label = {}
+        for label in label_to_id:
+            id_to_label[label_to_id[label]] = label
     
     return features, label_to_id, id_to_label
 
 
-def train_model():
+def train_model(char_n_max: int = 4, word_n_max: int = 1):
     """Train a Gaussian Naive Bayes classifier on the data."""
 
     # read data
@@ -67,7 +84,7 @@ def train_model():
     y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
 
     # featurise
-    X, label_to_id, id_to_label = featurise(X_raw, char_n_max=4, word_n_max=1)
+    X, label_to_id, id_to_label = featurise(X_raw, char_n_max=char_n_max, word_n_max=word_n_max)
 
     # split into train and test sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
@@ -91,7 +108,6 @@ def train_model():
         print()
     
     # print most informative features
-    # Find the features with the largest differences in means between classes
     mean_diffs = gnb.theta_[0, :] - gnb.theta_[1, :]
     abs_mean_diffs = np.abs(mean_diffs)
     sorted_mean_diffs = np.argsort(abs_mean_diffs)[::-1]
@@ -99,9 +115,53 @@ def train_model():
     print("Most informative features (positive = colloquial):")
     for i in range(30):
         print(f"{id_to_label[sorted_mean_diffs[i]]:<20} {mean_diffs[sorted_mean_diffs[i]]:>8.4f}")
+    
+    # save model
+    with open("models/model.pickle", "wb") as f:
+        pickle.dump({
+            "model": gnb,
+            "label_to_id": dict(label_to_id),
+            "id_to_label": dict(id_to_label),
+            "char_n_max": char_n_max,
+            "word_n_max": word_n_max
+        }, f)
+
+def load_model_and_test(path: str, X_raw: list[str]):
+    """Load a model from a pickle file."""
+
+    with open(path, "rb") as f:
+        config = pickle.load(f)
+    
+    # load model stuff
+    model = config["model"]
+    label_to_id = config["label_to_id"]
+    id_to_label = config["id_to_label"]
+    char_n_max = config["char_n_max"]
+    word_n_max = config["word_n_max"]
+
+    # featurise
+    X_test, _, _ = featurise(X_raw, char_n_max=char_n_max, word_n_max=word_n_max, label_to_id=label_to_id, id_to_label=id_to_label)
+    for sent in X_test:
+        for id in range(len(sent)):
+            if sent[id] > 0:
+                print(id_to_label[id], end=", ")
+        print()
+
+    # predict
+    y_pred = model.predict(X_test)
+
+    return y_pred
 
 def main():
-    train_model()
+    train_model(char_n_max=4, word_n_max=0)
+
+    test = [
+        "changar mattrum ivargal taj mahalil thamizh puththagangalai padippaargal",
+        "shankarum ivangalum taj mahalle tamil puthagangale padippaanga"
+    ]
+    results = load_model_and_test("models/model.pickle", test)
+    print(results)
+
 
 if __name__ == "__main__":
     main()
