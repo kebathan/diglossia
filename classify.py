@@ -11,6 +11,7 @@ import pandas as pd
 from collections import defaultdict
 import numpy as np
 import pickle
+import variants
 
 def featurise(
     sents: list[str],
@@ -74,12 +75,23 @@ def featurise(
 def train_model(char_n_max: int = 4, word_n_max: int = 1):
     """Train a Gaussian Naive Bayes classifier on the data."""
 
+    fxs = [variants.ch_s, variants.gemination, variants.zh_l, variants.h_g, variants.le_la]
+
     # read data
     data = pd.read_csv("data/regdataset.csv")
 
     # make X (sentences) and y (labels)
     literary = data["transliterated"].tolist()
     colloquial = data["colloquial: annotator 1"].tolist() + data["colloquial: annotator 2"].tolist()
+
+    # apply orthographical changes
+    for fx in fxs:
+        for sent in literary:
+            literary.extend(fx(sent)) if isinstance(fx(sent), list) else literary.append(fx(sent))
+        
+        for sent in colloquial:
+            colloquial.extend(fx(sent)) if isinstance(fx(sent), list) else colloquial.append(fx(sent))
+
     X_raw = literary + colloquial
     y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
 
