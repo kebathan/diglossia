@@ -12,6 +12,7 @@ from collections import defaultdict
 import numpy as np
 import pickle
 import variants
+from tqdm import tqdm
 
 def featurise(
     sents: list[str],
@@ -85,12 +86,21 @@ def train_model(char_n_max: int = 4, word_n_max: int = 1):
     colloquial = data["colloquial: annotator 1"].tolist() + data["colloquial: annotator 2"].tolist()
 
     # apply orthographical changes
-    for fx in fxs:
+    for fx in tqdm(fxs):
+        lit = []
         for sent in literary:
-            literary.extend(fx(sent)) if isinstance(fx(sent), list) else literary.append(fx(sent))
+            changed = fx(sent)
+            if changed is not None:
+                lit.extend(changed) if isinstance(changed, list) else lit.append(changed)
         
+        col = []
         for sent in colloquial:
-            colloquial.extend(fx(sent)) if isinstance(fx(sent), list) else colloquial.append(fx(sent))
+            changed = fx(sent)
+            if changed is not None:
+                col.extend(changed) if isinstance(changed, list) else col.append(changed)
+
+        literary.extend(lit)
+        colloquial.extend(col)
 
     X_raw = literary + colloquial
     y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
@@ -165,12 +175,13 @@ def load_model_and_test(path: str, X_raw: list[str]):
     return y_pred
 
 def main():
-    train_model(char_n_max=4, word_n_max=0)
+    train_model(char_n_max=4, word_n_max=1)
 
     test = [
         "changar mattrum ivargal taj mahalil thamizh puththagangalai padippaargal",
         "shankarum ivangalum taj mahalle tamil puthagangale padippaanga"
     ]
+
     results = load_model_and_test("models/model.pickle", test)
     print(results)
 

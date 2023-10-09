@@ -88,7 +88,10 @@ def h_g(text):
                 idx += 1
         else:
             idx += 1
-            
+
+        if idx+1 >= len(text):
+            break
+   
     return text if text != store else None
 
 
@@ -113,11 +116,11 @@ def le_la(text):
 
 test = "changar mattrum ivargal taj mahalil thamizh puththagangalai saappittu padippaargal"
 
-print(test)
-#print(h_g(ch_s(orth_replace(orth_replace(gemination(accusative(locative(plural(test))), ["thth", "pp"]), ("zh", "l")), ("th", "t")))))
+# print(test)
+# #print(h_g(ch_s(orth_replace(orth_replace(gemination(accusative(locative(plural(test))), ["thth", "pp"]), ("zh", "l")), ("th", "t")))))
 
-print(ch_s(test))
-print(gemination(test))
-print(h_g(test))
-print(locative(test))
-print(le_la(locative(test)))
+# print(ch_s(test))
+# print(gemination(test))
+# print(h_g(test))
+# print(locative(test))
+# print(le_la(locative(test)))
