@@ -33,8 +33,9 @@ def featurise(
         label_to_id = defaultdict(lambda: len(label_to_id))
 
     # make char n-grams
+    print("making char n-grams")
     char_ngrams = []
-    for sent in sents:
+    for sent in tqdm(sents):
         char_ngrams.append([])
         for n in range(1, char_n_max + 1):
             for i in range(len(sent) - n + 1):
@@ -44,8 +45,9 @@ def featurise(
                 char_ngrams[-1].append(label_to_id[key])
     
     # make word n-grams
+    print("making word n-grams")
     word_ngrams = []
-    for sent in sents:
+    for sent in tqdm(sents):
         sent_split = list(sent.split('_'))
         word_ngrams.append([])
         for n in range(1, word_n_max + 1):
@@ -56,8 +58,9 @@ def featurise(
                 word_ngrams[-1].append(label_to_id[key])
     
     # convert n-grams to counts
+    print("converting n-grams to counts")
     features = []
-    for i in range(len(sents)):
+    for i in tqdm(range(len(sents))):
         features.append([0 for _ in range(len(label_to_id))])
         for ngram in char_ngrams[i]:
             features[-1][ngram] += 1
