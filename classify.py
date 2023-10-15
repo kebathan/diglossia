@@ -61,7 +61,7 @@ def featurise(
     print("converting n-grams to counts")
     features = []
     for i in tqdm(range(len(sents))):
-        features.append([0 for _ in range(len(label_to_id))])
+        features.append(np.zeros(len(label_to_id)))
         for ngram in char_ngrams[i]:
             features[-1][ngram] += 1
         for ngram in word_ngrams[i]:
@@ -121,11 +121,20 @@ def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
     # create a Gaussian Naive Bayes classifier + train
+    print("starting model training")
     gnb = GaussianNB()
-    gnb.fit(X_train, y_train)
+    batch_size = 1000
+    for i in tqdm(range(0, len(X_train), batch_size)):
+        gnb.partial_fit(X_train[i:i+batch_size], y_train[i:i+batch_size], classes=["literary", "colloquial"])
+    del X_train, y_train
 
     # predict
-    y_pred = gnb.predict(X_test)
+    print("starting predictions")
+    y_pred = []
+    for i in tqdm(range(0, len(X_test), batch_size)):
+        y_pred.extend(gnb.predict(X_test[i:i+batch_size]))
+    y_pred = np.array(y_pred)
+    print(y_pred.shape)
 
     # print results
     print("Number of mislabeled points out of a total %d points : %d" % (len(X_test), (y_test != y_pred).sum()))
@@ -179,7 +188,10 @@ def load_model_and_test(path: str, X_raw: list[str]):
     #     print()
 
     # predict
-    y_pred = model.predict(X_test)
+    y_pred = []
+    for i in tqdm(range(0, len(X_test), 1000)):
+        y_pred.extend(model.predict(X_test[i:i+1000]))
+    y_pred = np.array(y_pred)
 
     return y_pred
 
