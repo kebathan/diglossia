@@ -13,6 +13,7 @@ import numpy as np
 import pickle
 import variants
 from tqdm import tqdm
+import argparse
 
 def featurise(
     sents: list[str],
@@ -88,10 +89,6 @@ def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False
     literary = data["transliterated"].tolist()
     colloquial = data["colloquial: annotator 1"].tolist() + data["colloquial: annotator 2"].tolist()
 
-    if include_dakshina:
-        with open("data/dakshina1.txt", "r") as data:
-            literary.extend(data.readlines())
-
     # apply orthographical changes
     for fx in tqdm(fxs):
         lit = []
@@ -109,9 +106,14 @@ def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False
         literary.extend(lit)
         colloquial.extend(col)
 
+    # no augmentation for dakshina
+    if include_dakshina:
+        with open("data/dakshina1.txt", "r") as data:
+            literary.extend(data.readlines())
+
+    # make raw data
     X_raw = literary + colloquial
     y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
-
     print(len(X_raw))
 
     # featurise
@@ -138,14 +140,6 @@ def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False
 
     # print results
     print("Number of mislabeled points out of a total %d points : %d" % (len(X_test), (y_test != y_pred).sum()))
-
-    # print first couple predictions
-    # print("\nFirst couple predictions:")
-    # for i in range(3):
-    #     print(X_test[i])
-    #     print("Predicted: " + y_pred[i])
-    #     print("Actual: " + y_test[i])
-    #     print()
     
     # print most informative features
     mean_diffs = gnb.theta_[0, :] - gnb.theta_[1, :]
@@ -181,11 +175,6 @@ def load_model_and_test(path: str, X_raw: list[str]):
 
     # featurise
     X_test, _, _ = featurise(X_raw, char_n_max=char_n_max, word_n_max=word_n_max, label_to_id=label_to_id, id_to_label=id_to_label)
-    # for sent in X_test:
-    #     for id in range(len(sent)):
-    #         if sent[id] > 0:
-    #             print(id_to_label[id], end=", ")
-    #     print()
 
     # predict
     y_pred = []
@@ -204,18 +193,20 @@ def test_files(files):
     return load_model_and_test("models/model.pickle", test)
 
 def main():
-    train_model(char_n_max=4, word_n_max=1, include_dakshina=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--train', action='store_true', help='train model')
+    parser.add_argument('--test', action='store_true', help='test model')
+    parser.add_argument('--char', type=int, default=4, help='max char n-gram')
+    parser.add_argument('--word', type=int, default=1, help='max word n-gram')
+    parser.add_argument('--dakshina', action='store_true', help='include dakshina')
+    args = parser.parse_args()
 
-    # test = [
-    #     "changar mattrum ivargal taj mahalil thamizh puththagangalai padippaargal",
-    #     "shankarum ivangalum taj mahalle tamil puthagangale padippaanga"
-    # ]
+    if args.train:
+        train_model(char_n_max=args.char, word_n_max=args.word, include_dakshina=args.dakshina)
 
-    # results = load_model_and_test("models/model.pickle", test)
-    # print(results)
-
-    results = test_files(["data/dakshina2.txt"])
-    print(Counter(results))
+    if args.test:
+        results = test_files(["data/dakshina2.txt"])
+        print(Counter(results))
 
 
 if __name__ == "__main__":
