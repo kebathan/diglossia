@@ -8,7 +8,7 @@ Date: 2023-09-10
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 import pandas as pd
-from collections import defaultdict
+from collections import defaultdict, Counter
 import numpy as np
 import pickle
 import variants
@@ -24,7 +24,7 @@ def featurise(
     """Featurise a list of sentences into a list of lists of n-grams."""
 
     # clean sents (remove punctuation, etc.)
-    sents = [''.join([x for x in sent.lower().replace(' ', '_') if x not in '.,']) for sent in sents]
+    sents = [''.join([x for x in sent.lower().replace(' ', '_') if x not in '.,\n']) for sent in sents]
 
     # label to id and id to label
     provided_labels = True
@@ -73,7 +73,7 @@ def featurise(
     return features, label_to_id, id_to_label
 
 
-def train_model(char_n_max: int = 4, word_n_max: int = 1):
+def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False):
     """Train a Gaussian Naive Bayes classifier on the data."""
 
     fxs = [variants.ch_s, variants.gemination, variants.zh_l, variants.h_g, variants.le_la]
@@ -84,6 +84,10 @@ def train_model(char_n_max: int = 4, word_n_max: int = 1):
     # make X (sentences) and y (labels)
     literary = data["transliterated"].tolist()
     colloquial = data["colloquial: annotator 1"].tolist() + data["colloquial: annotator 2"].tolist()
+
+    if include_dakshina:
+        with open("data/dakshina1.txt", "r") as data:
+            literary.extend(data.readlines())
 
     # apply orthographical changes
     for fx in tqdm(fxs):
@@ -105,6 +109,8 @@ def train_model(char_n_max: int = 4, word_n_max: int = 1):
     X_raw = literary + colloquial
     y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
 
+    print(len(X_raw))
+
     # featurise
     X, label_to_id, id_to_label = featurise(X_raw, char_n_max=char_n_max, word_n_max=word_n_max)
 
@@ -122,12 +128,12 @@ def train_model(char_n_max: int = 4, word_n_max: int = 1):
     print("Number of mislabeled points out of a total %d points : %d" % (len(X_test), (y_test != y_pred).sum()))
 
     # print first couple predictions
-    print("\nFirst couple predictions:")
-    for i in range(3):
-        print(X_raw[i])
-        print("Predicted: " + y_pred[i])
-        print("Actual: " + y_test[i])
-        print()
+    # print("\nFirst couple predictions:")
+    # for i in range(3):
+    #     print(X_test[i])
+    #     print("Predicted: " + y_pred[i])
+    #     print("Actual: " + y_test[i])
+    #     print()
     
     # print most informative features
     mean_diffs = gnb.theta_[0, :] - gnb.theta_[1, :]
@@ -163,27 +169,38 @@ def load_model_and_test(path: str, X_raw: list[str]):
 
     # featurise
     X_test, _, _ = featurise(X_raw, char_n_max=char_n_max, word_n_max=word_n_max, label_to_id=label_to_id, id_to_label=id_to_label)
-    for sent in X_test:
-        for id in range(len(sent)):
-            if sent[id] > 0:
-                print(id_to_label[id], end=", ")
-        print()
+    # for sent in X_test:
+    #     for id in range(len(sent)):
+    #         if sent[id] > 0:
+    #             print(id_to_label[id], end=", ")
+    #     print()
 
     # predict
     y_pred = model.predict(X_test)
 
     return y_pred
 
+def test_files(files):
+    test = []
+    for f in files:
+        with open(f, "r") as data:
+            test.extend(data.readlines())
+    
+    return load_model_and_test("models/model.pickle", test)
+
 def main():
-    train_model(char_n_max=4, word_n_max=1)
+    train_model(char_n_max=4, word_n_max=1, include_dakshina=True)
 
-    test = [
-        "changar mattrum ivargal taj mahalil thamizh puththagangalai padippaargal",
-        "shankarum ivangalum taj mahalle tamil puthagangale padippaanga"
-    ]
+    # test = [
+    #     "changar mattrum ivargal taj mahalil thamizh puththagangalai padippaargal",
+    #     "shankarum ivangalum taj mahalle tamil puthagangale padippaanga"
+    # ]
 
-    results = load_model_and_test("models/model.pickle", test)
-    print(results)
+    # results = load_model_and_test("models/model.pickle", test)
+    # print(results)
+
+    results = test_files(["data/dakshina2.txt"])
+    print(Counter(results))
 
 
 if __name__ == "__main__":
