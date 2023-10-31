@@ -1,11 +1,15 @@
 # analyses
 
-from plotnine import ggplot, ggtitle, aes, geom_histogram
+from plotnine import ggplot, ggtitle, aes, geom_histogram, xlim, theme_bw, theme_set, theme_gray, xlab, ylab, facet_wrap
 from levenshteindist import lev2
 import pandas as pd
 import csv
+import matplotlib.pyplot as plt
 
 from sacrebleu.metrics import BLEU, CHRF, TER   
+
+# set plotnine font
+theme_set(theme_gray(base_family="Times"))
 
 # LEVENSHTEIN DISTANCE >>>
 def levenshtein():
@@ -86,21 +90,23 @@ def levenshtein():
     print(f"average dist {sum(dists_a2)/len(dists_a2)}")
     print(f"average normalized dists {sum(normalized_dists_a2)/len(normalized_dists_a2)}\n\n")
 
+    # combine dfs
+    df_aa["type"] = "Ann. 1 ~ Ann. 2"
+    df_a1["type"] = "Literary ~ Ann. 1"
+    df_a2["type"] = "Literary ~ Ann. 2"
+    df = pd.concat([df_aa, df_a1, df_a2])
 
-    plot = ggplot(df_aa, aes(x="normalized dists")) + geom_histogram(bins=100) + ggtitle("between two annotators")
-    print(plot)
 
-    plot1 = ggplot(df_a1, aes(x="normalized dists")) + geom_histogram(bins=100) + ggtitle("between transliteration + annotator 1")
-    print(plot1)
-
-    plot2 = ggplot(df_a2, aes(x="normalized dists")) + geom_histogram(bins=100) + ggtitle("between transliteration + annotator 2")
-    print(plot2)
+    plot = (ggplot(df, aes(x="normalized dists")) + geom_histogram(binwidth=0.05)
+        + xlim(-0.05, 1.05) + xlab("Normalised Levenshtein distance")
+        + ylab("Frequency") + facet_wrap("type"))
+    plot.save("figures/levenshtein.pdf", width=7, height=1.5)
 
 
 # BLEU SCORE >>>
 def bleuscore_word():
 
-    dataset = pd.read_csv("regdataset.csv")
+    dataset = pd.read_csv("data/regdataset.csv")
 
     test_og = list(dataset["transliterated"])
     test_ann1 = list(dataset["colloquial: annotator 1"])
@@ -122,7 +128,7 @@ def bleuscore_word():
 
 def bleuscore_char():
 
-    dataset = pd.read_csv("regdataset.csv")
+    dataset = pd.read_csv("data/regdataset.csv")
 
     test_og = list(dataset["transliterated"])
     test_ann1 = list(dataset["colloquial: annotator 1"])

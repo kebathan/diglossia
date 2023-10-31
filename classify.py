@@ -1,7 +1,7 @@
 """
 Train a Gaussian Naive Bayes classifier on distinguishing literary and colloquial Tamil.
 
-Author: Aryaman Arora
+Author: Aryaman Arora and Kabilan Prasanna
 Date: 2023-09-10
 """
 
@@ -14,6 +14,207 @@ import pickle
 import variants
 from tqdm import tqdm
 import argparse
+from transformers import XLMRobertaForSequenceClassification, XLMRobertaTokenizer, AdamW, get_linear_schedule_with_warmup
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import confusion_matrix, classification_report
+import torch
+from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
+import time
+
+def load_data(include_dakshina=False):
+    # augmentation functions
+    fxs = [variants.ch_s, variants.gemination, variants.zh_l, variants.h_g, variants.le_la]
+
+    # read data
+    data = pd.read_csv("data/regdataset.csv")
+
+    # make X (sentences) and y (labels)
+    literary = data["transliterated"].tolist()
+    colloquial = data["colloquial: annotator 1"].tolist() + data["colloquial: annotator 2"].tolist()
+
+    # apply orthographical changes
+    for fx in tqdm(fxs):
+        lit = []
+        for sent in literary:
+            changed = fx(sent)
+            if changed is not None:
+                lit.extend(changed) if isinstance(changed, list) else lit.append(changed)
+        
+        col = []
+        for sent in colloquial:
+            changed = fx(sent)
+            if changed is not None:
+                col.extend(changed) if isinstance(changed, list) else col.append(changed)
+
+        literary.extend(lit)
+        colloquial.extend(col)
+
+    # no augmentation for dakshina
+    if include_dakshina:
+        with open("data/dakshina1.txt", "r") as data:
+            literary.extend(data.readlines())
+
+    # make raw data
+    X_raw = literary + colloquial
+    y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
+
+    return X_raw, y
+
+def finetune_xlm_roberta(include_dakshina=False):
+
+    # load model
+    model_name = 'xlm-roberta-base'
+    tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
+    model = XLMRobertaForSequenceClassification.from_pretrained(
+        model_name, 
+        num_labels = 2, 
+        output_attentions = False,
+        output_hidden_states = False
+    )
+
+    # read data
+    X_raw, y = load_data(include_dakshina)
+
+    # tokenize
+    tokenized_feature = tokenizer.batch_encode_plus(
+        # Sentences to encode
+        X_raw, 
+        # Add '[CLS]' and '[SEP]'
+        add_special_tokens = True,
+        # Add empty tokens if len(text)<MAX_LEN
+        padding = 'max_length',
+        # Truncate all sentences to max length
+        truncation=True,
+        # Set the maximum length
+        max_length = 128, 
+        # Return attention mask
+        return_attention_mask = True,
+        # Return pytorch tensors
+        return_tensors = 'pt'       
+    )
+
+    # labels
+    le = LabelEncoder()
+    le.fit(y)
+    target_num = le.transform(y)
+
+    # split into train and test sets
+    train_inputs, validation_inputs, train_labels, validation_labels, train_masks, validation_masks = train_test_split(
+        tokenized_feature['input_ids'], 
+        target_num,
+        tokenized_feature['attention_mask'],
+        random_state=2018, test_size=0.2, stratify=y
+    )
+
+    # define batch_size
+    batch_size = 16
+
+    # create the DataLoader for our training set
+    train_data = TensorDataset(train_inputs, train_masks, torch.tensor(train_labels))
+    train_sampler = RandomSampler(train_data)
+    train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
+
+    # create the DataLoader for our test set
+    validation_data = TensorDataset(validation_inputs, validation_masks, torch.tensor(validation_labels))
+    validation_sampler = SequentialSampler(validation_data)
+    validation_dataloader = DataLoader(validation_data, sampler=validation_sampler, batch_size=batch_size)
+
+    # optimiser
+    optimizer = AdamW(model.parameters(),
+        lr = 2e-5, 
+        eps = 1e-8 
+    )
+
+    # Number of training epochs
+    epochs = 4
+    # Total number of training steps is number of batches * number of epochs.
+    total_steps = len(train_dataloader) * epochs
+    # Create the learning rate scheduler
+    scheduler = get_linear_schedule_with_warmup(optimizer,
+        num_warmup_steps = 0,
+        num_training_steps = total_steps)
+
+    # training
+    loss_values = []
+    print('total steps per epoch: ',  len(train_dataloader) / batch_size)
+
+    # looping over epochs
+    for epoch_i in range(0, epochs):
+        print('training on epoch: ', epoch_i)
+
+        t0 = time.time()
+        total_loss = 0
+        model.train()
+
+        # loop through batch 
+        for step, batch in enumerate(tqdm(train_dataloader)):
+            if step % 50 == 0 and not step == 0:
+                print('training on step: ', step)
+                print('total time used is: {0:.2f} s'.format(time.time() - t0))
+
+            # load data from dataloader 
+            b_input_ids = batch[0]
+            b_input_mask = batch[1]
+            b_labels = batch[2]
+
+            # clear any previously calculated gradients 
+            model.zero_grad()
+
+            # get outputs
+            outputs = model(b_input_ids,
+                            token_type_ids=None,
+                            attention_mask=b_input_mask,
+                            labels=b_labels)
+            
+            # get loss + update
+            loss = outputs[0]
+            print(loss)
+            total_loss += loss.item()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            optimizer.step()
+            scheduler.step()
+
+    # calculate the average loss over the training data.
+    avg_train_loss = total_loss / len(train_dataloader)
+    loss_values.append(avg_train_loss)
+
+    print("average training loss: {0:.2f}".format(avg_train_loss))
+
+    t0 = time.time()
+    # model in validation mode
+    model.eval()
+    # save prediction
+    predictions, true_labels =[],[]
+    # evaluate data for one epoch
+    for batch in validation_dataloader:
+        # Add batch to GPU
+        batch = tuple(t for t in batch)
+        # Unpack the inputs from our dataloader
+        b_input_ids, b_input_mask, b_labels = batch
+        # validation
+        with torch.no_grad():
+            outputs = model(b_input_ids,
+                            token_type_ids=None,
+                            attention_mask=b_input_mask)
+        # get output
+        logits = outputs[0]
+        # move logits and labels to CPU
+        logits = logits.detach().cpu().numpy()
+        label_ids = b_labels.to('cpu').numpy()
+        final_prediction = np.argmax(logits, axis=-1).flatten()
+        predictions.append(final_prediction)
+        true_labels.append(label_ids)
+        
+    print('total time used is: {0:.2f} s'.format(time.time() - t0))
+
+    # convert numeric label to string
+    final_prediction_list = le.inverse_transform(np.concatenate(predictions))
+    final_truelabel_list = le.inverse_transform(np.concatenate(true_labels))
+
+    cr = classification_report(final_truelabel_list, 
+                            final_prediction_list, 
+                            output_dict=False)
+    print(cr)
 
 def featurise(
     sents: list[str],
@@ -80,40 +281,7 @@ def featurise(
 def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False):
     """Train a Gaussian Naive Bayes classifier on the data."""
 
-    fxs = [variants.ch_s, variants.gemination, variants.zh_l, variants.h_g, variants.le_la]
-
-    # read data
-    data = pd.read_csv("data/regdataset.csv")
-
-    # make X (sentences) and y (labels)
-    literary = data["transliterated"].tolist()
-    colloquial = data["colloquial: annotator 1"].tolist() + data["colloquial: annotator 2"].tolist()
-
-    # apply orthographical changes
-    for fx in tqdm(fxs):
-        lit = []
-        for sent in literary:
-            changed = fx(sent)
-            if changed is not None:
-                lit.extend(changed) if isinstance(changed, list) else lit.append(changed)
-        
-        col = []
-        for sent in colloquial:
-            changed = fx(sent)
-            if changed is not None:
-                col.extend(changed) if isinstance(changed, list) else col.append(changed)
-
-        literary.extend(lit)
-        colloquial.extend(col)
-
-    # no augmentation for dakshina
-    if include_dakshina:
-        with open("data/dakshina1.txt", "r") as data:
-            literary.extend(data.readlines())
-
-    # make raw data
-    X_raw = literary + colloquial
-    y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
+    X_raw, y = load_data(include_dakshina)
     print(len(X_raw))
 
     # featurise
@@ -196,6 +364,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--train', action='store_true', help='train model')
     parser.add_argument('--test', action='store_true', help='test model')
+    parser.add_argument('--xlmr', action='store_true', help='finetune model')
     parser.add_argument('--char', type=int, default=4, help='max char n-gram')
     parser.add_argument('--word', type=int, default=1, help='max word n-gram')
     parser.add_argument('--dakshina', action='store_true', help='include dakshina')
@@ -207,6 +376,9 @@ def main():
     if args.test:
         results = test_files(["data/dakshina2.txt"])
         print(Counter(results))
+    
+    if args.xlmr:
+        finetune_xlm_roberta(include_dakshina=args.dakshina)
 
 
 if __name__ == "__main__":
