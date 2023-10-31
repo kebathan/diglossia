@@ -63,6 +63,7 @@ def load_data(include_dakshina=False):
 def finetune_xlm_roberta(include_dakshina=False):
 
     # load model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model_name = 'xlm-roberta-base'
     tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
     model = XLMRobertaForSequenceClassification.from_pretrained(
@@ -70,7 +71,7 @@ def finetune_xlm_roberta(include_dakshina=False):
         num_labels = 2, 
         output_attentions = False,
         output_hidden_states = False
-    )
+    ).to(device)
 
     # read data
     X_raw, y = load_data(include_dakshina)
@@ -153,9 +154,9 @@ def finetune_xlm_roberta(include_dakshina=False):
                 print('total time used is: {0:.2f} s'.format(time.time() - t0))
 
             # load data from dataloader 
-            b_input_ids = batch[0]
-            b_input_mask = batch[1]
-            b_labels = batch[2]
+            b_input_ids = batch[0].to(device)
+            b_input_mask = batch[1].to(device)
+            b_labels = batch[2].to(device)
 
             # clear any previously calculated gradients 
             model.zero_grad()
@@ -188,7 +189,7 @@ def finetune_xlm_roberta(include_dakshina=False):
     # evaluate data for one epoch
     for batch in validation_dataloader:
         # Add batch to GPU
-        batch = tuple(t for t in batch)
+        batch = tuple(t.to(device) for t in batch)
         # Unpack the inputs from our dataloader
         b_input_ids, b_input_mask, b_labels = batch
         # validation
