@@ -218,11 +218,11 @@ def finetune_xlm_roberta(include_dakshina=False):
     print(cr)
 
 def featurise(
-    sents: list[str],
+    sents,
     char_n_max: int = 3,
     word_n_max: int = 3,
-    label_to_id: dict[str, int] = None,
-    id_to_label: dict[int, str] = None
+    label_to_id = None,
+    id_to_label = None
 ):
     """Featurise a list of sentences into a list of lists of n-grams."""
 
@@ -329,7 +329,7 @@ def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False
             "word_n_max": word_n_max
         }, f)
 
-def load_model_and_test(path: str, X_raw: list[str]):
+def load_model_and_test(path: str, X_raw):
     """Load a model from a pickle file."""
 
     with open(path, "rb") as f:
