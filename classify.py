@@ -21,33 +21,37 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 import time
 
-def load_data(include_dakshina=False):
+def load_data(include_dakshina=False, only_dakshina=False):
     # augmentation functions
     fxs = [variants.ch_s, variants.gemination, variants.zh_l, variants.h_g, variants.le_la]
 
+    literary = []
+    colloquial = []
+
     # read data
-    data = pd.read_csv("data/regdataset.csv")
+    if not only_dakshina:
+        data = pd.read_csv("data/regdataset.csv")
 
-    # make X (sentences) and y (labels)
-    literary = data["transliterated"].tolist()
-    colloquial = data["colloquial: annotator 1"].tolist() + data["colloquial: annotator 2"].tolist()
+        # make X (sentences) and y (labels)
+        literary = data["transliterated"].tolist()
+        colloquial = data["colloquial: annotator 1"].tolist() + data["colloquial: annotator 2"].tolist()
 
-    # apply orthographical changes
-    for fx in tqdm(fxs):
-        lit = []
-        for sent in literary:
-            changed = fx(sent)
-            if changed is not None:
-                lit.extend(changed) if isinstance(changed, list) else lit.append(changed)
-        
-        col = []
-        for sent in colloquial:
-            changed = fx(sent)
-            if changed is not None:
-                col.extend(changed) if isinstance(changed, list) else col.append(changed)
+        # apply orthographical changes
+        for fx in tqdm(fxs):
+            lit = []
+            for sent in literary:
+                changed = fx(sent)
+                if changed is not None:
+                    lit.extend(changed) if isinstance(changed, list) else lit.append(changed)
+            
+            col = []
+            for sent in colloquial:
+                changed = fx(sent)
+                if changed is not None:
+                    col.extend(changed) if isinstance(changed, list) else col.append(changed)
 
-        literary.extend(lit)
-        colloquial.extend(col)
+            literary.extend(lit)
+            colloquial.extend(col)
 
     # no augmentation for dakshina
     if include_dakshina:
@@ -77,23 +81,16 @@ def finetune_xlm_roberta(include_dakshina=False, lr=2e-5, epochs=4):
     ).to(device)
 
     # read data
-    X_raw, y = load_data(include_dakshina)
+    X_raw, y = load_data(include_dakshina=False, only_dakshina=False)
 
     # tokenize
     tokenized_feature = tokenizer.batch_encode_plus(
-        # Sentences to encode
         X_raw, 
-        # Add '[CLS]' and '[SEP]'
         add_special_tokens = True,
-        # Add empty tokens if len(text)<MAX_LEN
         padding = 'max_length',
-        # Truncate all sentences to max length
         truncation=True,
-        # Set the maximum length
         max_length = 128, 
-        # Return attention mask
         return_attention_mask = True,
-        # Return pytorch tensors
         return_tensors = 'pt'       
     )
 
@@ -103,12 +100,34 @@ def finetune_xlm_roberta(include_dakshina=False, lr=2e-5, epochs=4):
     target_num = le.transform(y)
 
     # split into train and test sets
-    train_inputs, validation_inputs, train_labels, validation_labels, train_masks, validation_masks = train_test_split(
-        tokenized_feature['input_ids'], 
-        target_num,
-        tokenized_feature['attention_mask'],
-        random_state=2018, test_size=0.2, stratify=y
+    # train_inputs, validation_inputs, train_labels, validation_labels, train_masks, validation_masks = train_test_split(
+    #     tokenized_feature['input_ids'], 
+    #     target_num,
+    #     tokenized_feature['attention_mask'],
+    #     random_state=2018, test_size=0.2, stratify=y
+    # )
+
+    train_inputs = tokenized_feature['input_ids']
+    train_masks = tokenized_feature['attention_mask']
+    train_labels = target_num
+
+    # read data
+    X_raw, y = load_data(include_dakshina=True, only_dakshina=True)
+
+    # tokenize
+    tokenized_feature = tokenizer.batch_encode_plus(
+        X_raw, 
+        add_special_tokens = True,
+        padding = 'max_length',
+        truncation=True,
+        max_length = 128, 
+        return_attention_mask = True,
+        return_tensors = 'pt'       
     )
+
+    validation_inputs = tokenized_feature['input_ids']
+    validation_masks = tokenized_feature['attention_mask']
+    validation_labels = le.transform(y)
 
     # define batch_size
     batch_size = 16
