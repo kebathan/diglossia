@@ -60,7 +60,7 @@ def load_data(train_on="regdata", test_on="both"):
         y_train.extend(y)
 
     # no augmentation for dakshina
-    if train_on == "dakshina" or train_on == "both":
+    if train_on == "both":
         literary = []
         with open("data/dakshina1.txt", "r") as data:
             literary.extend(data.readlines())
