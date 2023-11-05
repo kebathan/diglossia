@@ -303,10 +303,10 @@ def featurise(
     return features, label_to_id, id_to_label
 
 
-def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False):
+def train_model(char_n_max: int = 4, word_n_max: int = 1):
     """Train a Gaussian Naive Bayes classifier on the data."""
 
-    X_raw, y = load_data(include_dakshina)
+    X_raw, y = load_data("both", "both")
     print(len(X_raw))
 
     # featurise
@@ -400,7 +400,7 @@ def main():
     print(vars(args))
 
     if args.train:
-        train_model(char_n_max=args.char, word_n_max=args.word, include_dakshina=args.dakshina)
+        train_model(char_n_max=args.char, word_n_max=args.word)
 
     if args.test:
         results = test_files(["data/dakshina2.txt"])
@@ -408,7 +408,6 @@ def main():
     
     if args.xlmr:
         finetune_xlm_roberta(
-            include_dakshina=args.dakshina,
             lr=args.lr,
             epochs=args.epochs,
             train_on=args.train_on,
