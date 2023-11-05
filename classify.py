@@ -369,6 +369,7 @@ def main():
     parser.add_argument('--lr', type=float, default=2e-5, help='learning rate')
     parser.add_argument('--epochs', type=int, default=4, help='number of epochs')
     args = parser.parse_args()
+    print(**vars(args))
 
     if args.train:
         train_model(char_n_max=args.char, word_n_max=args.word, include_dakshina=args.dakshina)
