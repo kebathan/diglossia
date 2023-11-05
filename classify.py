@@ -21,15 +21,15 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 import time
 
-def load_data(include_dakshina=False, only_dakshina=False):
+def load_data(train_on="regdata", test_on="both"):
     # augmentation functions
     fxs = [variants.ch_s, variants.gemination, variants.zh_l, variants.h_g, variants.le_la]
 
-    literary = []
-    colloquial = []
+    X_train, y_train = [], []
+    X_test, y_test = [], []
 
     # read data
-    if not only_dakshina:
+    if train_on == "regdata" or train_on == "both":
         data = pd.read_csv("data/regdataset.csv")
 
         # make X (sentences) and y (labels)
@@ -53,21 +53,39 @@ def load_data(include_dakshina=False, only_dakshina=False):
             literary.extend(lit)
             colloquial.extend(col)
 
+        # add to train
+        X_raw = literary + colloquial
+        y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
+        X_train.append(X_raw)
+        y_train.append(y)
+
     # no augmentation for dakshina
-    if include_dakshina:
+    if train_on == "dakshina" or train_on == "both":
+        literary = []
         with open("data/dakshina1.txt", "r") as data:
             literary.extend(data.readlines())
-
-    # make raw data
-    X_raw = literary + colloquial
-    y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
+        X_train.append(literary)
+        y_train.append(["literary"] * len(literary))
+    
+    # test only on dakshina
+    if test_on == "dakshina":
+        literary = []
+        with open("data/dakshina2.txt", "r") as data:
+            literary.extend(data.readlines())
+        X_test.append(literary)
+        y_test.append(["literary"] * len(literary))
+    
+    if test_on == "both":
+        # split train into train and test
+        X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.2, stratify=y_train)
 
     # remove punctuation and lowercase
-    X_raw = [''.join([x for x in sent.lower() if x not in '.,\n']) for sent in X_raw]
+    X_train = [''.join([x for x in sent.lower() if x not in '.,\n']) for sent in X_train]
+    X_test = [''.join([x for x in sent.lower() if x not in '.,\n']) for sent in X_test]
 
-    return X_raw, y
+    return X_train, y_train, X_test, y_test
 
-def finetune_xlm_roberta(include_dakshina=False, lr=2e-5, epochs=4):
+def finetune_xlm_roberta(train_on="both", test_on="both", lr=2e-5, epochs=4):
 
     # load model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -81,42 +99,15 @@ def finetune_xlm_roberta(include_dakshina=False, lr=2e-5, epochs=4):
     ).to(device)
 
     # read data
-    X_raw, y = load_data(include_dakshina=False, only_dakshina=False)
-
-    # tokenize
-    tokenized_feature = tokenizer.batch_encode_plus(
-        X_raw, 
-        add_special_tokens = True,
-        padding = 'max_length',
-        truncation=True,
-        max_length = 128, 
-        return_attention_mask = True,
-        return_tensors = 'pt'       
-    )
+    X_train, y_train, X_test, y_test = load_data(train_on=train_on, test_on=test_on)
 
     # labels
     le = LabelEncoder()
-    le.fit(y)
-    target_num = le.transform(y)
+    le.fit(y_train + y_test)
 
-    # split into train and test sets
-    # train_inputs, validation_inputs, train_labels, validation_labels, train_masks, validation_masks = train_test_split(
-    #     tokenized_feature['input_ids'], 
-    #     target_num,
-    #     tokenized_feature['attention_mask'],
-    #     random_state=2018, test_size=0.2, stratify=y
-    # )
-
-    train_inputs = tokenized_feature['input_ids']
-    train_masks = tokenized_feature['attention_mask']
-    train_labels = target_num
-
-    # read data
-    X_raw, y = load_data(include_dakshina=True, only_dakshina=True)
-
-    # tokenize
+    # tokenize train
     tokenized_feature = tokenizer.batch_encode_plus(
-        X_raw, 
+        X_train, 
         add_special_tokens = True,
         padding = 'max_length',
         truncation=True,
@@ -124,10 +115,23 @@ def finetune_xlm_roberta(include_dakshina=False, lr=2e-5, epochs=4):
         return_attention_mask = True,
         return_tensors = 'pt'       
     )
+    train_inputs = tokenized_feature['input_ids']
+    train_masks = tokenized_feature['attention_mask']
+    train_labels = le.transform(y_train)
 
+    # tokenize test
+    tokenized_feature = tokenizer.batch_encode_plus(
+        X_test, 
+        add_special_tokens = True,
+        padding = 'max_length',
+        truncation=True,
+        max_length = 128, 
+        return_attention_mask = True,
+        return_tensors = 'pt'       
+    )
     validation_inputs = tokenized_feature['input_ids']
     validation_masks = tokenized_feature['attention_mask']
-    validation_labels = le.transform(y)
+    validation_labels = le.transform(y_test)
 
     # define batch_size
     batch_size = 16
@@ -388,9 +392,10 @@ def main():
     parser.add_argument('--xlmr', action='store_true', help='finetune model')
     parser.add_argument('--char', type=int, default=4, help='max char n-gram')
     parser.add_argument('--word', type=int, default=1, help='max word n-gram')
-    parser.add_argument('--dakshina', action='store_true', help='include dakshina')
     parser.add_argument('--lr', type=float, default=2e-5, help='learning rate')
     parser.add_argument('--epochs', type=int, default=4, help='number of epochs')
+    parser.add_argument('--train_on', type=str, default="both", help='train on dakshina or regdata')
+    parser.add_argument('--test_on', type=str, default="both", help='test on dakshina or regdata')
     args = parser.parse_args()
     print(vars(args))
 
@@ -402,7 +407,13 @@ def main():
         print(Counter(results))
     
     if args.xlmr:
-        finetune_xlm_roberta(include_dakshina=args.dakshina, lr=args.lr, epochs=args.epochs)
+        finetune_xlm_roberta(
+            include_dakshina=args.dakshina,
+            lr=args.lr,
+            epochs=args.epochs,
+            train_on=args.train_on,
+            test_on=args.test_on
+        )
 
 
 if __name__ == "__main__":
