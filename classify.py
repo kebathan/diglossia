@@ -60,7 +60,7 @@ def load_data(include_dakshina=False):
 
     return X_raw, y
 
-def finetune_xlm_roberta(include_dakshina=False):
+def finetune_xlm_roberta(include_dakshina=False, lr=2e-5):
 
     # load model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -122,7 +122,7 @@ def finetune_xlm_roberta(include_dakshina=False):
 
     # optimiser
     optimizer = AdamW(model.parameters(),
-        lr = 2e-5, 
+        lr = lr, 
         eps = 1e-8 
     )
 
@@ -147,7 +147,7 @@ def finetune_xlm_roberta(include_dakshina=False):
         total_loss = 0
         model.train()
 
-        # loop through batch 
+        # loop through batch
         for step, batch in enumerate(tqdm(train_dataloader)):
             if step % 50 == 0 and not step == 0:
                 print('training on step: ', step)
@@ -169,15 +169,15 @@ def finetune_xlm_roberta(include_dakshina=False):
             
             # get loss + update
             loss = outputs[0]
-            print(loss)
             total_loss += loss.item()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
             scheduler.step()
 
-    # calculate the average loss over the training data.
-    avg_train_loss = total_loss / len(train_dataloader)
-    loss_values.append(avg_train_loss)
+        # calculate the average loss over the training data.
+        avg_train_loss = total_loss / len(train_dataloader)
+        loss_values.append(avg_train_loss)
+        print(avg_train_loss)
 
     print("average training loss: {0:.2f}".format(avg_train_loss))
 
@@ -369,6 +369,7 @@ def main():
     parser.add_argument('--char', type=int, default=4, help='max char n-gram')
     parser.add_argument('--word', type=int, default=1, help='max word n-gram')
     parser.add_argument('--dakshina', action='store_true', help='include dakshina')
+    parser.add_argument('--lr', type=float, default=2e-5, help='learning rate')
     args = parser.parse_args()
 
     if args.train:
