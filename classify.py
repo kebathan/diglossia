@@ -58,6 +58,9 @@ def load_data(include_dakshina=False):
     X_raw = literary + colloquial
     y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
 
+    # remove punctuation and lowercase
+    X_raw = [''.join([x for x in sent.lower() if x not in '.,\n']) for sent in X_raw]
+
     return X_raw, y
 
 def finetune_xlm_roberta(include_dakshina=False, lr=2e-5, epochs=4):
