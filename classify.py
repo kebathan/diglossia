@@ -56,24 +56,24 @@ def load_data(train_on="regdata", test_on="both"):
         # add to train
         X_raw = literary + colloquial
         y = (["literary"] * len(literary)) + (["colloquial"] * (len(colloquial)))
-        X_train.append(X_raw)
-        y_train.append(y)
+        X_train.extend(X_raw)
+        y_train.extend(y)
 
     # no augmentation for dakshina
     if train_on == "dakshina" or train_on == "both":
         literary = []
         with open("data/dakshina1.txt", "r") as data:
             literary.extend(data.readlines())
-        X_train.append(literary)
-        y_train.append(["literary"] * len(literary))
+        X_train.extend(literary)
+        y_train.extend(["literary"] * len(literary))
     
     # test only on dakshina
     if test_on == "dakshina":
         literary = []
         with open("data/dakshina2.txt", "r") as data:
             literary.extend(data.readlines())
-        X_test.append(literary)
-        y_test.append(["literary"] * len(literary))
+        X_test.extend(literary)
+        y_test.extend(["literary"] * len(literary))
     
     if test_on == "both":
         # split train into train and test
