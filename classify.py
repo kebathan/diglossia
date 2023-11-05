@@ -60,7 +60,7 @@ def load_data(include_dakshina=False):
 
     return X_raw, y
 
-def finetune_xlm_roberta(include_dakshina=False, lr=2e-5):
+def finetune_xlm_roberta(include_dakshina=False, lr=2e-5, epochs=4):
 
     # load model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -126,8 +126,6 @@ def finetune_xlm_roberta(include_dakshina=False, lr=2e-5):
         eps = 1e-8 
     )
 
-    # Number of training epochs
-    epochs = 4
     # Total number of training steps is number of batches * number of epochs.
     total_steps = len(train_dataloader) * epochs
     # Create the learning rate scheduler
@@ -149,9 +147,9 @@ def finetune_xlm_roberta(include_dakshina=False, lr=2e-5):
 
         # loop through batch
         for step, batch in enumerate(tqdm(train_dataloader)):
-            if step % 50 == 0 and not step == 0:
-                print('training on step: ', step)
-                print('total time used is: {0:.2f} s'.format(time.time() - t0))
+            # if step % 50 == 0 and not step == 0:
+            #     print('training on step: ', step)
+            #     print('total time used is: {0:.2f} s'.format(time.time() - t0))
 
             # load data from dataloader 
             b_input_ids = batch[0].to(device)
@@ -177,45 +175,44 @@ def finetune_xlm_roberta(include_dakshina=False, lr=2e-5):
         # calculate the average loss over the training data.
         avg_train_loss = total_loss / len(train_dataloader)
         loss_values.append(avg_train_loss)
-        print(avg_train_loss)
 
-    print("average training loss: {0:.2f}".format(avg_train_loss))
+        print("average training loss: {0:.2f}".format(avg_train_loss))
 
-    t0 = time.time()
-    # model in validation mode
-    model.eval()
-    # save prediction
-    predictions, true_labels =[],[]
-    # evaluate data for one epoch
-    for batch in validation_dataloader:
-        # Add batch to GPU
-        batch = tuple(t.to(device) for t in batch)
-        # Unpack the inputs from our dataloader
-        b_input_ids, b_input_mask, b_labels = batch
-        # validation
-        with torch.no_grad():
-            outputs = model(b_input_ids,
-                            token_type_ids=None,
-                            attention_mask=b_input_mask)
-        # get output
-        logits = outputs[0]
-        # move logits and labels to CPU
-        logits = logits.detach().cpu().numpy()
-        label_ids = b_labels.to('cpu').numpy()
-        final_prediction = np.argmax(logits, axis=-1).flatten()
-        predictions.append(final_prediction)
-        true_labels.append(label_ids)
-        
-    print('total time used is: {0:.2f} s'.format(time.time() - t0))
+        t0 = time.time()
+        # model in validation mode
+        model.eval()
+        # save prediction
+        predictions, true_labels =[],[]
+        # evaluate data for one epoch
+        for batch in validation_dataloader:
+            # Add batch to GPU
+            batch = tuple(t.to(device) for t in batch)
+            # Unpack the inputs from our dataloader
+            b_input_ids, b_input_mask, b_labels = batch
+            # validation
+            with torch.no_grad():
+                outputs = model(b_input_ids,
+                                token_type_ids=None,
+                                attention_mask=b_input_mask)
+            # get output
+            logits = outputs[0]
+            # move logits and labels to CPU
+            logits = logits.detach().cpu().numpy()
+            label_ids = b_labels.to('cpu').numpy()
+            final_prediction = np.argmax(logits, axis=-1).flatten()
+            predictions.append(final_prediction)
+            true_labels.append(label_ids)
+            
+        # print('total time used is: {0:.2f} s'.format(time.time() - t0))
 
-    # convert numeric label to string
-    final_prediction_list = le.inverse_transform(np.concatenate(predictions))
-    final_truelabel_list = le.inverse_transform(np.concatenate(true_labels))
+        # convert numeric label to string
+        final_prediction_list = le.inverse_transform(np.concatenate(predictions))
+        final_truelabel_list = le.inverse_transform(np.concatenate(true_labels))
 
-    cr = classification_report(final_truelabel_list, 
-                            final_prediction_list, 
-                            output_dict=False)
-    print(cr)
+        cr = classification_report(final_truelabel_list, 
+                                final_prediction_list, 
+                                output_dict=False)
+        print(cr)
 
 def featurise(
     sents,
@@ -279,7 +276,7 @@ def featurise(
     return features, label_to_id, id_to_label
 
 
-def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False, lr=2e-5):
+def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False, lr=2e-5, epochs=4):
     """Train a Gaussian Naive Bayes classifier on the data."""
 
     X_raw, y = load_data(include_dakshina)
@@ -370,6 +367,7 @@ def main():
     parser.add_argument('--word', type=int, default=1, help='max word n-gram')
     parser.add_argument('--dakshina', action='store_true', help='include dakshina')
     parser.add_argument('--lr', type=float, default=2e-5, help='learning rate')
+    parser.add_argument('--epochs', type=int, default=4, help='number of epochs')
     args = parser.parse_args()
 
     if args.train:
