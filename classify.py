@@ -279,7 +279,7 @@ def featurise(
     return features, label_to_id, id_to_label
 
 
-def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False):
+def train_model(char_n_max: int = 4, word_n_max: int = 1, include_dakshina=False, lr=2e-5):
     """Train a Gaussian Naive Bayes classifier on the data."""
 
     X_raw, y = load_data(include_dakshina)
