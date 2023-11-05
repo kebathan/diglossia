@@ -168,6 +168,7 @@ def finetune_xlm_roberta(include_dakshina=False, lr=2e-5, epochs=4):
             # get loss + update
             loss = outputs[0]
             total_loss += loss.item()
+            loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
             scheduler.step()
