@@ -21,6 +21,7 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 import time
 from datasets import load_dataset
+import os
 
 def load_data(train_on="regdata", test_on="both", augment=True):
     # augmentation functions
@@ -270,6 +271,8 @@ def finetune_xlm_roberta(
                                 output_dict=True, zero_division=0)
         print(cr)
 
+    # make directory if it doesn't exist
+    os.makedirs("models/xlm_roberta", exist_ok=True)
     path = "models/xlm_roberta"
     model_path = f"{path}/model.pt"
     torch.save(model.state_dict(), model_path)
@@ -472,7 +475,7 @@ def make_table():
     with open("res2.txt", "w") as f:
 
         acc, f1_s, f1_l, ood_acc = [], [], [], []
-        for _ in range(5):
+        for _ in range(1):
             cr = finetune_xlm_roberta(
                 lr=2e-5,
                 epochs=4,
@@ -485,7 +488,7 @@ def make_table():
             f1_l.append(cr['literary']['f1-score'])
             print(cr)
 
-        for _ in range(5):
+        for _ in range(1):
             cr = finetune_xlm_roberta(
                 lr=2e-5,
                 epochs=4,
