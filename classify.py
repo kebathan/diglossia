@@ -241,6 +241,11 @@ def finetune_xlm_roberta(train_on="both", test_on="both", lr=2e-5, epochs=4):
                                 output_dict=False)
         print(cr)
 
+    path = "models/xlm_roberta"
+    model_path = f"{path}/model.pt"
+    torch.save(model.state_dict(), model_path)
+    tokenizer.save_pretrained(path)
+
 def featurise(
     sents,
     char_n_max: int = 3,
@@ -301,7 +306,6 @@ def featurise(
             id_to_label[label_to_id[label]] = label
     
     return features, label_to_id, id_to_label
-
 
 def train_model(char_n_max: int = 4, word_n_max: int = 1):
     """Train a Gaussian Naive Bayes classifier on the data."""
@@ -384,6 +388,33 @@ def test_files(files):
             test.extend(data.readlines())
     
     return load_model_and_test("models/model.pickle", test)
+
+def load_model_and_tokenize(model_path: str, tokenizer_path: str):
+
+    model = XLMRobertaForSequenceClassification.from_pretrained(model_path)
+    tokenizer = XLMRobertaTokenizer.from_pretrained(tokenizer_path)
+
+    model.eval()
+
+    return model, tokenizer
+
+def roberta_predict(sentences, model, tokenizer):
+    
+    predictions = []
+
+    for sentence in sentences:
+        inputs = tokenizer(sentence, return_tensors="pt", padding=True, truncation=True, max_length=128)
+    
+        with torch.nograd():
+            outputs = model(**inputs)
+
+        logits = outputs.logits
+        prediction = torch.softmax(logits, dim=1)
+        predicted_class = torch.argmax(prediction).item()
+
+        prediction.append(predicted_class)
+
+    return predictions
 
 def main():
     parser = argparse.ArgumentParser()
