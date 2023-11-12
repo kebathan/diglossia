@@ -6,7 +6,7 @@ Date: 2023-09-10
 """
 
 from sklearn.model_selection import train_test_split
-from sklearn.naive_bayes import GaussianNB
+from sklearn.naive_bayes import GaussianNB, MultinomialNB
 import pandas as pd
 from collections import defaultdict, Counter
 import numpy as np
@@ -20,8 +20,9 @@ from sklearn.metrics import confusion_matrix, classification_report
 import torch
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler
 import time
+from datasets import load_dataset
 
-def load_data(train_on="regdata", test_on="both"):
+def load_data(train_on="regdata", test_on="both", augment=True):
     # augmentation functions
     fxs = [variants.ch_s, variants.gemination, variants.zh_l, variants.h_g, variants.le_la]
 
@@ -37,21 +38,23 @@ def load_data(train_on="regdata", test_on="both"):
         colloquial = data["colloquial: annotator 1"].tolist() + data["colloquial: annotator 2"].tolist()
 
         # apply orthographical changes
-        for fx in tqdm(fxs):
-            lit = []
-            for sent in literary:
-                changed = fx(sent)
-                if changed is not None:
-                    lit.extend(changed) if isinstance(changed, list) else lit.append(changed)
-            
-            col = []
-            for sent in colloquial:
-                changed = fx(sent)
-                if changed is not None:
-                    col.extend(changed) if isinstance(changed, list) else col.append(changed)
+        # print(len(literary), len(colloquial))
+        if augment:
+            for fx in fxs:
+                lit = []
+                for sent in literary:
+                    changed = fx(sent)
+                    if changed is not None:
+                        lit.extend(changed) if isinstance(changed, list) else lit.append(changed)
+                
+                col = []
+                for sent in colloquial:
+                    changed = fx(sent)
+                    if changed is not None:
+                        col.extend(changed) if isinstance(changed, list) else col.append(changed)
 
-            literary.extend(lit)
-            colloquial.extend(col)
+                literary.extend(lit)
+                colloquial.extend(col)
 
         # add to train
         X_raw = literary + colloquial
@@ -70,10 +73,30 @@ def load_data(train_on="regdata", test_on="both"):
     # test only on dakshina
     if test_on == "dakshina":
         literary = []
+        with open("data/dakshina1.txt", "r") as data:
+            literary.extend(data.readlines())
         with open("data/dakshina2.txt", "r") as data:
             literary.extend(data.readlines())
         X_test.extend(literary)
         y_test.extend(["literary"] * len(literary))
+    
+    if test_on == "tamilmixsentiment":
+        dataset = load_dataset('tamilmixsentiment')
+        dataset = [row["text"] for split in dataset.keys() for row in dataset[split]]
+        X_test.extend(dataset)
+        y_test.extend(["literary"] * len(dataset))
+    
+    if test_on == "offenseval":
+        dataset = load_dataset('offenseval_dravidian', 'tamil')
+        dataset = [row["text"] for split in dataset.keys() for row in dataset[split]]
+        X_test.extend(dataset)
+        y_test.extend(["literary"] * len(dataset))
+    
+    if test_on == "hope_edi":
+        dataset = load_dataset('hope_edi', 'tamil')
+        dataset = [row["text"] for split in dataset.keys() for row in dataset[split]]
+        X_test.extend(dataset)
+        y_test.extend(["literary"] * len(dataset))
     
     if test_on == "both":
         # split train into train and test
@@ -85,7 +108,13 @@ def load_data(train_on="regdata", test_on="both"):
 
     return X_train, y_train, X_test, y_test
 
-def finetune_xlm_roberta(train_on="both", test_on="both", lr=2e-5, epochs=4):
+def finetune_xlm_roberta(
+    train_on="both",
+    test_on="both",
+    lr=2e-5,
+    epochs=4,
+    augment=True
+):
 
     # load model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -99,7 +128,7 @@ def finetune_xlm_roberta(train_on="both", test_on="both", lr=2e-5, epochs=4):
     ).to(device)
 
     # read data
-    X_train, y_train, X_test, y_test = load_data(train_on=train_on, test_on=test_on)
+    X_train, y_train, X_test, y_test = load_data(train_on=train_on, test_on=test_on, augment=augment)
 
     # labels
     le = LabelEncoder()
@@ -237,9 +266,9 @@ def finetune_xlm_roberta(train_on="both", test_on="both", lr=2e-5, epochs=4):
         final_truelabel_list = le.inverse_transform(np.concatenate(true_labels))
 
         cr = classification_report(final_truelabel_list, 
-                                final_prediction_list, 
-                                output_dict=False)
-        print(cr)
+                                final_prediction_list,
+                                output_dict=True, zero_division=0)
+        return cr
 
     path = "models/xlm_roberta"
     model_path = f"{path}/model.pt"
@@ -265,9 +294,9 @@ def featurise(
         label_to_id = defaultdict(lambda: len(label_to_id))
 
     # make char n-grams
-    print("making char n-grams")
+    # print("making char n-grams")
     char_ngrams = []
-    for sent in tqdm(sents):
+    for sent in sents:
         char_ngrams.append([])
         for n in range(1, char_n_max + 1):
             for i in range(len(sent) - n + 1):
@@ -277,9 +306,9 @@ def featurise(
                 char_ngrams[-1].append(label_to_id[key])
     
     # make word n-grams
-    print("making word n-grams")
+    # print("making word n-grams")
     word_ngrams = []
-    for sent in tqdm(sents):
+    for sent in sents:
         sent_split = list(sent.split('_'))
         word_ngrams.append([])
         for n in range(1, word_n_max + 1):
@@ -290,14 +319,15 @@ def featurise(
                 word_ngrams[-1].append(label_to_id[key])
     
     # convert n-grams to counts
-    print("converting n-grams to counts")
+    # print("converting n-grams to counts")
     features = []
-    for i in tqdm(range(len(sents))):
+    for i in range(len(sents)):
         features.append(np.zeros(len(label_to_id)))
         for ngram in char_ngrams[i]:
             features[-1][ngram] += 1
         for ngram in word_ngrams[i]:
             features[-1][ngram] += 1
+        # features[-1] /= features[-1].sum()
     
     # make id to label
     if id_to_label is None:
@@ -307,48 +337,67 @@ def featurise(
     
     return features, label_to_id, id_to_label
 
-def train_model(char_n_max: int = 4, word_n_max: int = 1):
+
+def train_model(
+    model: str="gnb",
+    train_on: str="both",
+    test_on: str="both",
+    char_n_max: int = 4,
+    word_n_max: int = 1,
+    augment: bool = True,
+    X_train: list = None,
+    y_train: list = None,
+    X_test: list = None,
+    y_test: list = None,
+    label_to_id: dict = None,
+    id_to_label: dict = None
+):
     """Train a Gaussian Naive Bayes classifier on the data."""
 
-    X_raw, y = load_data("both", "both")
-    print(len(X_raw))
+    if X_train is None:
+        X_train, y_train, X_test, y_test = load_data(train_on, test_on, augment=augment)
+        # print("Train size:", len(X_train))
+        # print("Test size:", len(X_test))
 
-    # featurise
-    X, label_to_id, id_to_label = featurise(X_raw, char_n_max=char_n_max, word_n_max=word_n_max)
-
-    # split into train and test sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        # featurise
+        X, label_to_id, id_to_label = featurise(X_train + X_test, char_n_max=char_n_max, word_n_max=word_n_max)
+        X_train = X[:len(X_train)]
+        X_test = X[len(X_train):]
 
     # create a Gaussian Naive Bayes classifier + train
-    print("starting model training")
-    gnb = GaussianNB()
+    # print("starting model training")
+    gnb = GaussianNB() if model == "gnb" else MultinomialNB()
     batch_size = 1000
-    for i in tqdm(range(0, len(X_train), batch_size)):
+    for i in range(0, len(X_train), batch_size):
         gnb.partial_fit(X_train[i:i+batch_size], y_train[i:i+batch_size], classes=["literary", "colloquial"])
-    del X_train, y_train
 
     # predict
-    print("starting predictions")
+    # print("starting predictions")
     y_pred = []
-    for i in tqdm(range(0, len(X_test), batch_size)):
+    for i in range(0, len(X_test), batch_size):
         y_pred.extend(gnb.predict(X_test[i:i+batch_size]))
     y_pred = np.array(y_pred)
-    print(y_pred.shape)
 
     # print results
-    print("Number of mislabeled points out of a total %d points : %d" % (len(X_test), (y_test != y_pred).sum()))
+    cr = classification_report(y_test, 
+                            y_pred, 
+                            output_dict=True, zero_division=0)
+    # print(cr)
+    # print("Number of mislabeled points out of a total %d points : %d" % (len(X_test), (y_test != y_pred).sum()))
+    # print(Counter(y_pred))
     
     # print most informative features
-    mean_diffs = gnb.theta_[0, :] - gnb.theta_[1, :]
-    abs_mean_diffs = np.abs(mean_diffs)
-    sorted_mean_diffs = np.argsort(abs_mean_diffs)[::-1]
+    # if model == "gnb":
+    #     mean_diffs = gnb.theta_[0, :] - gnb.theta_[1, :]
+    #     abs_mean_diffs = np.abs(mean_diffs)
+    #     sorted_mean_diffs = np.argsort(abs_mean_diffs)[::-1]
 
-    print("Most informative features (positive = colloquial):")
-    for i in range(30):
-        print(f"{id_to_label[sorted_mean_diffs[i]]:<20} {mean_diffs[sorted_mean_diffs[i]]:>8.4f}")
+    #     print("Most informative features (positive = colloquial):")
+    #     for i in range(5):
+    #         print(f"{id_to_label[sorted_mean_diffs[i]]:<20} {mean_diffs[sorted_mean_diffs[i]]:>8.4f}")
     
     # save model
-    with open("models/model.pickle", "wb") as f:
+    with open("models/gnb.pickle", "wb") as f:
         pickle.dump({
             "model": gnb,
             "label_to_id": dict(label_to_id),
@@ -356,6 +405,8 @@ def train_model(char_n_max: int = 4, word_n_max: int = 1):
             "char_n_max": char_n_max,
             "word_n_max": word_n_max
         }, f)
+    
+    return gnb, y_test, y_pred, cr, X_train, y_train, X_test, y_test, label_to_id, id_to_label
 
 def load_model_and_test(path: str, X_raw):
     """Load a model from a pickle file."""
@@ -416,11 +467,99 @@ def roberta_predict(sentences, model, tokenizer):
 
     return predictions
 
+def make_table():
+
+    with open("res2.txt", "w") as f:
+
+        acc, f1_s, f1_l, ood_acc = [], [], [], []
+        for _ in range(5):
+            cr = finetune_xlm_roberta(
+                lr=2e-5,
+                epochs=4,
+                train_on="regdata",
+                test_on="both",
+                augment=True
+            )
+            acc.append(cr['accuracy'])
+            f1_s.append(cr['colloquial']['f1-score'])
+            f1_l.append(cr['literary']['f1-score'])
+            print(cr)
+
+        for _ in range(5):
+            cr = finetune_xlm_roberta(
+                lr=2e-5,
+                epochs=4,
+                train_on="regdata",
+                test_on="dakshina",
+                augment=True
+            )
+            ood_acc.append(cr['accuracy'])
+            print(cr)
+
+        string = f"xlm-r & & {sum(acc) / 5:.1%} & {sum(f1_s) / 5:.3f} & {sum(f1_l) / 5:.3f} & {sum(ood_acc) / 5:.1%}\n".replace("%", "\\%")
+        f.write(string)
+        print(string)
+
+    # with open("res.txt", "w") as f:
+    #     for model in ["gnb", "mnb"]:
+    #         for word in range(1, -1, -1):
+    #             for char in range(4, -1, -1):
+    #                 if char == 0 and word == 0:
+    #                     continue
+                    
+    #                 acc, f1_s, f1_l, ood_acc = [], [], [], []
+    #                 X_train, y_train, X_test, y_test, label_to_id, id_to_label = None, None, None, None, None, None
+
+    #                 for _ in tqdm(range(5)):
+    #                     gnb, y_test, y_pred, cr, X_train, y_train, X_test, y_test, label_to_id, id_to_label = train_model(
+    #                         model=model,
+    #                         char_n_max=char,
+    #                         word_n_max=word,
+    #                         train_on="regdata",
+    #                         test_on="both",
+    #                         augment=True,
+    #                         X_train=X_train,
+    #                         y_train=y_train,
+    #                         X_test=X_test,
+    #                         y_test=y_test,
+    #                         label_to_id=label_to_id,
+    #                         id_to_label=id_to_label
+    #                     )
+    #                     acc.append(cr['accuracy'])
+    #                     f1_s.append(cr['colloquial']['f1-score'])
+    #                     f1_l.append(cr['literary']['f1-score'])
+
+    #                 X_train, y_train, X_test, y_test, label_to_id, id_to_label = None, None, None, None, None, None
+
+    #                 for _ in tqdm(range(5)):
+    #                     gnb, y_test, y_pred, cr2, X_train, y_train, X_test, y_test, label_to_id, id_to_label = train_model(
+    #                         model=model,
+    #                         char_n_max=char,
+    #                         word_n_max=word,
+    #                         train_on="regdata",
+    #                         test_on="dakshina",
+    #                         augment=True,
+    #                         X_train=X_train,
+    #                         y_train=y_train,
+    #                         X_test=X_test,
+    #                         y_test=y_test,
+    #                         label_to_id=label_to_id,
+    #                         id_to_label=id_to_label
+    #                     )
+    #                     ood_acc.append(cr2['accuracy'])
+
+    #                 string = f"{model} & $c={char}, w={word}$ & {sum(acc) / 5:.1%} & {sum(f1_s) / 5:.3f} & {sum(f1_l) / 5:.3f} & {sum(ood_acc) / 5:.1%}\n"
+    #                 f.write(string)
+    #                 print(string)
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train', action='store_true', help='train model')
-    parser.add_argument('--test', action='store_true', help='test model')
+    parser.add_argument('--gnb', action='store_true', help='train Gaussian naive bayes model')
+    parser.add_argument('--mnb', action='store_true', help='train Multinomial naive bayes model')
+    parser.add_argument('--table', action='store_true', help='make table')
+    parser.add_argument('--test_gnb', action='store_true', help='test model')
     parser.add_argument('--xlmr', action='store_true', help='finetune model')
+    parser.add_argument('--no_augment', action='store_true', help='don\'t augment data')
     parser.add_argument('--char', type=int, default=4, help='max char n-gram')
     parser.add_argument('--word', type=int, default=1, help='max word n-gram')
     parser.add_argument('--lr', type=float, default=2e-5, help='learning rate')
@@ -430,10 +569,20 @@ def main():
     args = parser.parse_args()
     print(vars(args))
 
-    if args.train:
-        train_model(char_n_max=args.char, word_n_max=args.word)
+    if args.table:
+        make_table()
 
-    if args.test:
+    if args.gnb or args.mnb:
+        train_model(
+            model="mnb" if args.mnb else "gnb",
+            char_n_max=args.char,
+            word_n_max=args.word,
+            train_on=args.train_on,
+            test_on=args.test_on,
+            augment=not args.no_augment
+        )
+
+    if args.test_gnb:
         results = test_files(["data/dakshina2.txt"])
         print(Counter(results))
     
@@ -442,7 +591,8 @@ def main():
             lr=args.lr,
             epochs=args.epochs,
             train_on=args.train_on,
-            test_on=args.test_on
+            test_on=args.test_on,
+            augment=not args.no_augment
         )
 
 
