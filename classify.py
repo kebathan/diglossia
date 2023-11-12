@@ -268,6 +268,7 @@ def finetune_xlm_roberta(
         cr = classification_report(final_truelabel_list, 
                                 final_prediction_list,
                                 output_dict=True, zero_division=0)
+        print(cr)
 
     path = "models/xlm_roberta"
     model_path = f"{path}/model.pt"
@@ -336,7 +337,6 @@ def featurise(
             id_to_label[label_to_id[label]] = label
     
     return features, label_to_id, id_to_label
-
 
 def train_model(
     model: str="gnb",
