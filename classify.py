@@ -266,10 +266,9 @@ def finetune_xlm_roberta(
         final_truelabel_list = le.inverse_transform(np.concatenate(true_labels))
 
         cr = classification_report(final_truelabel_list, 
-                                final_prediction_list, 
-                                output_dict=False)
-        print(cr)
-        print(Counter(final_prediction_list))
+                                final_prediction_list,
+                                output_dict=True, zero_division=0)
+        return cr
 
 def featurise(
     sents,
@@ -437,57 +436,87 @@ def test_files(files):
     return load_model_and_test("models/model.pickle", test)
 
 def make_table():
-    with open("res.txt", "w") as f:
-        for model in ["gnb", "mnb"]:
-            for word in range(1, -1, -1):
-                for char in range(4, -1, -1):
-                    if char == 0 and word == 0:
-                        continue
+    
+    with open("res2.txt", "w") as f:
+
+        acc, f1_s, f1_l, ood_acc = [], [], [], []
+        for _ in range(5):
+            cr = finetune_xlm_roberta(
+                lr=2e-5,
+                epochs=4,
+                train_on="regdata",
+                test_on="both",
+                augment=True
+            )
+            acc.append(cr['accuracy'])
+            f1_s.append(cr['colloquial']['f1-score'])
+            f1_l.append(cr['literary']['f1-score'])
+
+        for _ in range(5):
+            cr = finetune_xlm_roberta(
+                lr=2e-5,
+                epochs=4,
+                train_on="regdata",
+                test_on="dakshina",
+                augment=True
+            )
+            ood_acc.append(cr['accuracy'])
+
+        string = f"xlm-r & & {sum(acc) / 5:.1%} & {sum(f1_s) / 5:.3f} & {sum(f1_l) / 5:.3f} & {sum(ood_acc) / 5:.1%}\n".replace("%", "\\%")
+        f.write(string)
+        print(string)
+
+    # with open("res.txt", "w") as f:
+    #     for model in ["gnb", "mnb"]:
+    #         for word in range(1, -1, -1):
+    #             for char in range(4, -1, -1):
+    #                 if char == 0 and word == 0:
+    #                     continue
                     
-                    acc, f1_s, f1_l, ood_acc = [], [], [], []
-                    X_train, y_train, X_test, y_test, label_to_id, id_to_label = None, None, None, None, None, None
+    #                 acc, f1_s, f1_l, ood_acc = [], [], [], []
+    #                 X_train, y_train, X_test, y_test, label_to_id, id_to_label = None, None, None, None, None, None
 
-                    for _ in tqdm(range(5)):
-                        gnb, y_test, y_pred, cr, X_train, y_train, X_test, y_test, label_to_id, id_to_label = train_model(
-                            model=model,
-                            char_n_max=char,
-                            word_n_max=word,
-                            train_on="regdata",
-                            test_on="both",
-                            augment=True,
-                            X_train=X_train,
-                            y_train=y_train,
-                            X_test=X_test,
-                            y_test=y_test,
-                            label_to_id=label_to_id,
-                            id_to_label=id_to_label
-                        )
-                        acc.append(cr['accuracy'])
-                        f1_s.append(cr['colloquial']['f1-score'])
-                        f1_l.append(cr['literary']['f1-score'])
+    #                 for _ in tqdm(range(5)):
+    #                     gnb, y_test, y_pred, cr, X_train, y_train, X_test, y_test, label_to_id, id_to_label = train_model(
+    #                         model=model,
+    #                         char_n_max=char,
+    #                         word_n_max=word,
+    #                         train_on="regdata",
+    #                         test_on="both",
+    #                         augment=True,
+    #                         X_train=X_train,
+    #                         y_train=y_train,
+    #                         X_test=X_test,
+    #                         y_test=y_test,
+    #                         label_to_id=label_to_id,
+    #                         id_to_label=id_to_label
+    #                     )
+    #                     acc.append(cr['accuracy'])
+    #                     f1_s.append(cr['colloquial']['f1-score'])
+    #                     f1_l.append(cr['literary']['f1-score'])
 
-                    X_train, y_train, X_test, y_test, label_to_id, id_to_label = None, None, None, None, None, None
+    #                 X_train, y_train, X_test, y_test, label_to_id, id_to_label = None, None, None, None, None, None
 
-                    for _ in tqdm(range(5)):
-                        gnb, y_test, y_pred, cr2, X_train, y_train, X_test, y_test, label_to_id, id_to_label = train_model(
-                            model=model,
-                            char_n_max=char,
-                            word_n_max=word,
-                            train_on="regdata",
-                            test_on="dakshina",
-                            augment=True,
-                            X_train=X_train,
-                            y_train=y_train,
-                            X_test=X_test,
-                            y_test=y_test,
-                            label_to_id=label_to_id,
-                            id_to_label=id_to_label
-                        )
-                        ood_acc.append(cr2['accuracy'])
+    #                 for _ in tqdm(range(5)):
+    #                     gnb, y_test, y_pred, cr2, X_train, y_train, X_test, y_test, label_to_id, id_to_label = train_model(
+    #                         model=model,
+    #                         char_n_max=char,
+    #                         word_n_max=word,
+    #                         train_on="regdata",
+    #                         test_on="dakshina",
+    #                         augment=True,
+    #                         X_train=X_train,
+    #                         y_train=y_train,
+    #                         X_test=X_test,
+    #                         y_test=y_test,
+    #                         label_to_id=label_to_id,
+    #                         id_to_label=id_to_label
+    #                     )
+    #                     ood_acc.append(cr2['accuracy'])
 
-                    string = f"{model} & $c={char}, w={word}$ & {sum(acc) / 5:.1%} & {sum(f1_s) / 5:.3f} & {sum(f1_l) / 5:.3f} & {sum(ood_acc) / 5:.1%}\n"
-                    f.write(string)
-                    print(string)
+    #                 string = f"{model} & $c={char}, w={word}$ & {sum(acc) / 5:.1%} & {sum(f1_s) / 5:.3f} & {sum(f1_l) / 5:.3f} & {sum(ood_acc) / 5:.1%}\n"
+    #                 f.write(string)
+    #                 print(string)
 
 def main():
     parser = argparse.ArgumentParser()
