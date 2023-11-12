@@ -268,12 +268,12 @@ def finetune_xlm_roberta(
         cr = classification_report(final_truelabel_list, 
                                 final_prediction_list,
                                 output_dict=True, zero_division=0)
-        return cr
 
     path = "models/xlm_roberta"
     model_path = f"{path}/model.pt"
     torch.save(model.state_dict(), model_path)
     tokenizer.save_pretrained(path)
+    return cr
 
 def featurise(
     sents,
