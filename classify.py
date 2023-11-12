@@ -436,7 +436,7 @@ def test_files(files):
     return load_model_and_test("models/model.pickle", test)
 
 def make_table():
-    
+
     with open("res2.txt", "w") as f:
 
         acc, f1_s, f1_l, ood_acc = [], [], [], []
@@ -451,6 +451,7 @@ def make_table():
             acc.append(cr['accuracy'])
             f1_s.append(cr['colloquial']['f1-score'])
             f1_l.append(cr['literary']['f1-score'])
+            print(cr)
 
         for _ in range(5):
             cr = finetune_xlm_roberta(
@@ -461,6 +462,7 @@ def make_table():
                 augment=True
             )
             ood_acc.append(cr['accuracy'])
+            print(cr)
 
         string = f"xlm-r & & {sum(acc) / 5:.1%} & {sum(f1_s) / 5:.3f} & {sum(f1_l) / 5:.3f} & {sum(ood_acc) / 5:.1%}\n".replace("%", "\\%")
         f.write(string)
