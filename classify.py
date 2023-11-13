@@ -470,96 +470,10 @@ def roberta_predict(sentences, model, tokenizer):
 
     return predictions
 
-def make_table():
-
-    with open("res2.txt", "w") as f:
-
-        acc, f1_s, f1_l, ood_acc = [], [], [], []
-        for _ in range(1):
-            cr = finetune_xlm_roberta(
-                lr=2e-5,
-                epochs=4,
-                train_on="regdata",
-                test_on="both",
-                augment=True
-            )
-            acc.append(cr['accuracy'])
-            f1_s.append(cr['colloquial']['f1-score'])
-            f1_l.append(cr['literary']['f1-score'])
-            print(cr)
-
-        for _ in range(1):
-            cr = finetune_xlm_roberta(
-                lr=2e-5,
-                epochs=4,
-                train_on="regdata",
-                test_on="dakshina",
-                augment=True
-            )
-            ood_acc.append(cr['accuracy'])
-            print(cr)
-
-        string = f"xlm-r & & {sum(acc) / 5:.1%} & {sum(f1_s) / 5:.3f} & {sum(f1_l) / 5:.3f} & {sum(ood_acc) / 5:.1%}\n".replace("%", "\\%")
-        f.write(string)
-        print(string)
-
-    # with open("res.txt", "w") as f:
-    #     for model in ["gnb", "mnb"]:
-    #         for word in range(1, -1, -1):
-    #             for char in range(4, -1, -1):
-    #                 if char == 0 and word == 0:
-    #                     continue
-                    
-    #                 acc, f1_s, f1_l, ood_acc = [], [], [], []
-    #                 X_train, y_train, X_test, y_test, label_to_id, id_to_label = None, None, None, None, None, None
-
-    #                 for _ in tqdm(range(5)):
-    #                     gnb, y_test, y_pred, cr, X_train, y_train, X_test, y_test, label_to_id, id_to_label = train_model(
-    #                         model=model,
-    #                         char_n_max=char,
-    #                         word_n_max=word,
-    #                         train_on="regdata",
-    #                         test_on="both",
-    #                         augment=True,
-    #                         X_train=X_train,
-    #                         y_train=y_train,
-    #                         X_test=X_test,
-    #                         y_test=y_test,
-    #                         label_to_id=label_to_id,
-    #                         id_to_label=id_to_label
-    #                     )
-    #                     acc.append(cr['accuracy'])
-    #                     f1_s.append(cr['colloquial']['f1-score'])
-    #                     f1_l.append(cr['literary']['f1-score'])
-
-    #                 X_train, y_train, X_test, y_test, label_to_id, id_to_label = None, None, None, None, None, None
-
-    #                 for _ in tqdm(range(5)):
-    #                     gnb, y_test, y_pred, cr2, X_train, y_train, X_test, y_test, label_to_id, id_to_label = train_model(
-    #                         model=model,
-    #                         char_n_max=char,
-    #                         word_n_max=word,
-    #                         train_on="regdata",
-    #                         test_on="dakshina",
-    #                         augment=True,
-    #                         X_train=X_train,
-    #                         y_train=y_train,
-    #                         X_test=X_test,
-    #                         y_test=y_test,
-    #                         label_to_id=label_to_id,
-    #                         id_to_label=id_to_label
-    #                     )
-    #                     ood_acc.append(cr2['accuracy'])
-
-    #                 string = f"{model} & $c={char}, w={word}$ & {sum(acc) / 5:.1%} & {sum(f1_s) / 5:.3f} & {sum(f1_l) / 5:.3f} & {sum(ood_acc) / 5:.1%}\n"
-    #                 f.write(string)
-    #                 print(string)
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gnb', action='store_true', help='train Gaussian naive bayes model')
     parser.add_argument('--mnb', action='store_true', help='train Multinomial naive bayes model')
-    parser.add_argument('--table', action='store_true', help='make table')
     parser.add_argument('--test_gnb', action='store_true', help='test model')
     parser.add_argument('--xlmr', action='store_true', help='finetune model')
     parser.add_argument('--no_augment', action='store_true', help='don\'t augment data')
@@ -571,9 +485,6 @@ def main():
     parser.add_argument('--test_on', type=str, default="both", help='test on dakshina or regdata')
     args = parser.parse_args()
     print(vars(args))
-
-    if args.table:
-        make_table()
 
     if args.gnb or args.mnb:
         train_model(
