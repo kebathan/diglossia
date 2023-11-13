@@ -78,6 +78,7 @@ def load_data(train_on="regdata", test_on="both", augment=True):
         literary = []
         with open("data/dakshina1.txt", "r") as data:
             literary.extend(data.readlines())
+        literary = literary[:1000]
         # with open("data/dakshina2.txt", "r") as data:
         #     literary.extend(data.readlines())
         X_test.extend(literary)
