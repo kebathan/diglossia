@@ -117,7 +117,8 @@ def finetune_xlm_roberta(
     test_on="both",
     lr=2e-5,
     epochs=4,
-    augment=True
+    augment=True,
+    freeze=False
 ):
 
     # load model
@@ -130,6 +131,13 @@ def finetune_xlm_roberta(
         output_attentions = False,
         output_hidden_states = False
     ).to(device)
+
+    # freeze
+    if freeze:
+        for param in model.parameters():
+            param.requires_grad = False
+        for param in model.classifier.parameters():
+            param.requires_grad = True
 
     # read data
     X_train, y_train, X_test, y_test = load_data(train_on=train_on, test_on=test_on, augment=augment)
@@ -479,6 +487,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=4, help='number of epochs')
     parser.add_argument('--train_on', type=str, default="both", help='train on dakshina or regdata')
     parser.add_argument('--test_on', type=str, default="both", help='test on dakshina or regdata')
+    parser.add_argument('--freeze', action='store_true', help='freeze model')
     args = parser.parse_args()
     print(vars(args))
 
@@ -502,7 +511,8 @@ def main():
             epochs=args.epochs,
             train_on=args.train_on,
             test_on=args.test_on,
-            augment=not args.no_augment
+            augment=not args.no_augment,
+            freeze=args.freeze
         )
 
 
