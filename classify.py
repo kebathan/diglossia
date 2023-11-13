@@ -68,6 +68,8 @@ def load_data(train_on="regdata", test_on="both", augment=True):
         literary = []
         with open("data/dakshina1.txt", "r") as data:
             literary.extend(data.readlines())
+        with open("data/dakshina2.txt", "r") as data:
+            literary.extend(data.readlines())
         X_train.extend(literary)
         y_train.extend(["literary"] * len(literary))
     
@@ -352,8 +354,8 @@ def train_model(
     """Train a Gaussian Naive Bayes classifier on the data."""
 
     X_train, y_train, X_test, y_test = load_data(train_on, test_on, augment=augment)
-    # print("Train size:", len(X_train))
-    # print("Test size:", len(X_test))
+    print("Train size:", len(X_train))
+    print("Test size:", len(X_test))
 
     # featurise
     X, label_to_id, id_to_label = featurise(X_train + X_test, char_n_max=char_n_max, word_n_max=word_n_max)
