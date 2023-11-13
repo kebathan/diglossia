@@ -82,6 +82,13 @@ def load_data(train_on="regdata", test_on="both", augment=True):
             literary.extend(data.readlines())
         X_test.extend(literary)
         y_test.extend(["literary"] * len(literary))
+
+    if test_on == "cc100":
+        literary = []
+        with open("data/cc100_head.txt", "r") as data:
+            literary.extend(data.readlines())
+        X_test.extend(literary)
+        y_test.extend(["literary"] * len(literary))
     
     if test_on == "tamilmixsentiment":
         dataset = load_dataset('tamilmixsentiment')
