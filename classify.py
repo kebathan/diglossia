@@ -389,7 +389,7 @@ def train_model(
     cr = classification_report(y_test, 
                             y_pred, 
                             output_dict=True, zero_division=0)
-    # print(cr)
+    print(cr)
     # print("Number of mislabeled points out of a total %d points : %d" % (len(X_test), (y_test != y_pred).sum()))
     # print(Counter(y_pred))
     
