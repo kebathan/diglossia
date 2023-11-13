@@ -7,7 +7,7 @@ with open("res2.txt", "w") as f:
     
     # get xlm-r results
     acc, f1_s, f1_l, ood_acc = [], [], [], []
-    acc2, f1_s2, f1_l2 = [], [], [], []
+    acc2, f1_s2, f1_l2 = [], [], []
     for _ in range(5):
         cr = finetune_xlm_roberta(
             lr=2e-5,
@@ -67,7 +67,7 @@ with open("res2.txt", "w") as f:
                     continue
                 
                 acc, f1_s, f1_l, ood_acc = [], [], [], []
-                acc2, f1_s2, f1_l2 = [], [], [], []
+                acc2, f1_s2, f1_l2 = [], [], []
                 X_train, y_train, X_test, y_test, label_to_id, id_to_label = None, None, None, None, None, None
 
                 for _ in tqdm(range(5)):
