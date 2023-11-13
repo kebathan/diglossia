@@ -347,25 +347,18 @@ def train_model(
     test_on: str="both",
     char_n_max: int = 4,
     word_n_max: int = 1,
-    augment: bool = True,
-    X_train: list = None,
-    y_train: list = None,
-    X_test: list = None,
-    y_test: list = None,
-    label_to_id: dict = None,
-    id_to_label: dict = None
+    augment: bool = True
 ):
     """Train a Gaussian Naive Bayes classifier on the data."""
 
-    if X_train is None:
-        X_train, y_train, X_test, y_test = load_data(train_on, test_on, augment=augment)
-        # print("Train size:", len(X_train))
-        # print("Test size:", len(X_test))
+    X_train, y_train, X_test, y_test = load_data(train_on, test_on, augment=augment)
+    # print("Train size:", len(X_train))
+    # print("Test size:", len(X_test))
 
-        # featurise
-        X, label_to_id, id_to_label = featurise(X_train + X_test, char_n_max=char_n_max, word_n_max=word_n_max)
-        X_train = X[:len(X_train)]
-        X_test = X[len(X_train):]
+    # featurise
+    X, label_to_id, id_to_label = featurise(X_train + X_test, char_n_max=char_n_max, word_n_max=word_n_max)
+    X_train = X[:len(X_train)]
+    X_test = X[len(X_train):]
 
     # create a Gaussian Naive Bayes classifier + train
     # print("starting model training")

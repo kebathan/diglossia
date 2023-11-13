@@ -9,46 +9,47 @@ with open("res2.txt", "w") as f:
     acc, f1_s, f1_l, ood_acc = [], [], [], []
     acc2, f1_s2, f1_l2 = [], [], []
     
-    cr = finetune_xlm_roberta(
-        lr=2e-5,
-        epochs=4,
-        train_on="regdata",
-        test_on="both",
-        augment=True
-    )
-    acc.append(cr['accuracy'])
-    f1_s.append(cr['colloquial']['f1-score'])
-    f1_l.append(cr['literary']['f1-score'])
-    print(cr)
+    for _ in range(5):
+        cr = finetune_xlm_roberta(
+            lr=2e-5,
+            epochs=4,
+            train_on="regdata",
+            test_on="both",
+            augment=True
+        )
+        acc.append(cr['accuracy'])
+        f1_s.append(cr['colloquial']['f1-score'])
+        f1_l.append(cr['literary']['f1-score'])
+        print(cr)
 
-    cr = finetune_xlm_roberta(
-        lr=2e-5,
-        epochs=4,
-        train_on="regdata",
-        test_on="dakshina",
-        augment=True
-    )
-    ood_acc.append(cr['accuracy'])
-    print(cr)
-        
-    cr = finetune_xlm_roberta(
-        lr=2e-5,
-        epochs=4,
-        train_on="both",
-        test_on="both",
-        augment=True
-    )
-    acc2.append(cr['accuracy'])
-    f1_s2.append(cr['colloquial']['f1-score'])
-    f1_l2.append(cr['literary']['f1-score'])
-    print(cr)
+        cr = finetune_xlm_roberta(
+            lr=2e-5,
+            epochs=4,
+            train_on="regdata",
+            test_on="dakshina",
+            augment=True
+        )
+        ood_acc.append(cr['accuracy'])
+        print(cr)
+            
+        cr = finetune_xlm_roberta(
+            lr=2e-5,
+            epochs=4,
+            train_on="both",
+            test_on="both",
+            augment=True
+        )
+        acc2.append(cr['accuracy'])
+        f1_s2.append(cr['colloquial']['f1-score'])
+        f1_l2.append(cr['literary']['f1-score'])
+        print(cr)
     
     fields = [
         "xlm-r",
         f"${mean(acc):.1%}$",
         f"${mean(f1_s):.3f}$",
         f"${mean(f1_l):.3f}$",
-        f"${mean(ood_acc):.1%}$"
+        f"${mean(ood_acc):.1%}$",
         f"${mean(acc2):.1%}$",
         f"${mean(f1_s2):.3f}$",
         f"${mean(f1_l2):.3f}$",
@@ -66,7 +67,6 @@ with open("res2.txt", "w") as f:
                 
                 acc, f1_s, f1_l, ood_acc = [], [], [], []
                 acc2, f1_s2, f1_l2 = [], [], []
-                X_train, y_train, X_test, y_test, label_to_id, id_to_label = None, None, None, None, None, None
 
                 for _ in tqdm(range(5)):
                     gnb, y_test, y_pred, cr, X_train, y_train, X_test, y_test, label_to_id, id_to_label = train_model(
@@ -75,13 +75,7 @@ with open("res2.txt", "w") as f:
                         word_n_max=word,
                         train_on="regdata",
                         test_on="both",
-                        augment=True,
-                        X_train=X_train,
-                        y_train=y_train,
-                        X_test=X_test,
-                        y_test=y_test,
-                        label_to_id=label_to_id,
-                        id_to_label=id_to_label
+                        augment=True
                     )
                     acc.append(cr['accuracy'])
                     f1_s.append(cr['colloquial']['f1-score'])
@@ -96,13 +90,7 @@ with open("res2.txt", "w") as f:
                         word_n_max=word,
                         train_on="regdata",
                         test_on="dakshina",
-                        augment=True,
-                        X_train=X_train,
-                        y_train=y_train,
-                        X_test=X_test,
-                        y_test=y_test,
-                        label_to_id=label_to_id,
-                        id_to_label=id_to_label
+                        augment=True
                     )
                     ood_acc.append(cr2['accuracy'])
 
@@ -113,13 +101,7 @@ with open("res2.txt", "w") as f:
                         word_n_max=word,
                         train_on="both",
                         test_on="both",
-                        augment=True,
-                        X_train=X_train,
-                        y_train=y_train,
-                        X_test=X_test,
-                        y_test=y_test,
-                        label_to_id=label_to_id,
-                        id_to_label=id_to_label
+                        augment=True
                     )
                     acc2.append(cr['accuracy'])
                     f1_s2.append(cr['colloquial']['f1-score'])
@@ -132,7 +114,7 @@ with open("res2.txt", "w") as f:
                     f"${mean(acc):.1%} \pm {std(acc):.1%}$",
                     f"${mean(f1_s):.3f} \pm {std(f1_s):.3f}$",
                     f"${mean(f1_l):.3f} \pm {std(f1_l):.3f}$",
-                    f"${mean(ood_acc):.1%} \pm {std(ood_acc):.1%}$"
+                    f"${mean(ood_acc):.1%} \pm {std(ood_acc):.1%}$",
                     f"${mean(acc2):.1%} \pm {std(acc2):.1%}$",
                     f"${mean(f1_s2):.3f} \pm {std(f1_s2):.3f}$",
                     f"${mean(f1_l2):.3f} \pm {std(f1_l2):.3f}$",
