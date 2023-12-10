@@ -520,7 +520,8 @@ def main():
             train_on=args.train_on,
             test_on=args.test_on,
             augment=not args.no_augment,
-            freeze=args.freeze
+            freeze=args.freeze,
+            model_name=args.model_name
         )
 
 
