@@ -124,12 +124,12 @@ def finetune_xlm_roberta(
     lr=2e-5,
     epochs=4,
     augment=True,
-    freeze=False
+    freeze=False,
+    model_name="xlm-roberta-base",
 ):
 
     # load model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model_name = 'xlm-roberta-base'
     tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
     model = XLMRobertaForSequenceClassification.from_pretrained(
         model_name, 
@@ -293,7 +293,8 @@ def finetune_xlm_roberta(
     path = "models/xlm_roberta"
     model_path = f"{path}/model.pt"
     torch.save(model.state_dict(), model_path)
-    tokenizer.save_pretrained(path)
+    tokenizer.save_pretrained(path, push_to_hub=True, repo_id=f"aryaman/{model_name}-irumozhi")
+    model.save_pretrained(path, push_to_hub=True, repo_id=f"aryaman/{model_name}-irumozhi")
     return cr
 
 def featurise(
@@ -494,6 +495,7 @@ def main():
     parser.add_argument('--train_on', type=str, default="both", help='train on dakshina or regdata')
     parser.add_argument('--test_on', type=str, default="both", help='test on dakshina or regdata')
     parser.add_argument('--freeze', action='store_true', help='freeze model')
+    parser.add_argument('--model_name', type=str, default="xlm-roberta-base", help='model name')
     args = parser.parse_args()
     print(vars(args))
 
@@ -518,7 +520,8 @@ def main():
             train_on=args.train_on,
             test_on=args.test_on,
             augment=not args.no_augment,
-            freeze=args.freeze
+            freeze=args.freeze,
+            model_name=args.model_name
         )
 
 
