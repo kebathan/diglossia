@@ -48,20 +48,20 @@ with open("res2.txt", "w") as f:
             f1_l2.append(cr['literary']['f1-score'])
             print(cr)
     
-    fields = [
-        "xlm-r",
-        f"${mean(acc):.1%}$",
-        f"${mean(f1_s):.3f}$",
-        f"${mean(f1_l):.3f}$",
-        f"${mean(ood_acc):.1%}$",
-        f"${mean(acc2):.1%}$",
-        f"${mean(f1_s2):.3f}$",
-        f"${mean(f1_l2):.3f}$",
-    ]
+        fields = [
+            model,
+            f"${mean(acc):.1%}$",
+            f"${mean(f1_s):.3f}$",
+            f"${mean(f1_l):.3f}$",
+            f"${mean(ood_acc):.1%}$",
+            f"${mean(acc2):.1%}$",
+            f"${mean(f1_s2):.3f}$",
+            f"${mean(f1_l2):.3f}$",
+        ]
 
-    string = " & ".join(fields).replace("%", "\\%")
-    f.write(string)
-    print(string)
+        string = " & ".join(fields).replace("%", "\\%")
+        f.write(string)
+        print(string)
 
     for model in ["gnb", "mnb"]:
         for word in range(1, -1, -1):
