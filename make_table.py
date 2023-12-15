@@ -9,40 +9,44 @@ with open("res2.txt", "w") as f:
     acc, f1_s, f1_l, ood_acc = [], [], [], []
     acc2, f1_s2, f1_l2 = [], [], []
     
-    for _ in range(5):
-        cr = finetune_xlm_roberta(
-            lr=2e-5,
-            epochs=4,
-            train_on="regdata",
-            test_on="both",
-            augment=True
-        )
-        acc.append(cr['accuracy'])
-        f1_s.append(cr['colloquial']['f1-score'])
-        f1_l.append(cr['literary']['f1-score'])
-        print(cr)
+    for model in ["xlm-roberta-base", "xlm-roberta-large"]:
+        for _ in range(5):
+            cr = finetune_xlm_roberta(
+                lr=2e-5,
+                epochs=4,
+                train_on="regdata",
+                test_on="both",
+                augment=True,
+                model_name=model
+            )
+            acc.append(cr['accuracy'])
+            f1_s.append(cr['colloquial']['f1-score'])
+            f1_l.append(cr['literary']['f1-score'])
+            print(cr)
 
-        cr = finetune_xlm_roberta(
-            lr=2e-5,
-            epochs=4,
-            train_on="regdata",
-            test_on="dakshina",
-            augment=True
-        )
-        ood_acc.append(cr['accuracy'])
-        print(cr)
-            
-        cr = finetune_xlm_roberta(
-            lr=2e-5,
-            epochs=4,
-            train_on="both",
-            test_on="both",
-            augment=True
-        )
-        acc2.append(cr['accuracy'])
-        f1_s2.append(cr['colloquial']['f1-score'])
-        f1_l2.append(cr['literary']['f1-score'])
-        print(cr)
+            cr = finetune_xlm_roberta(
+                lr=2e-5,
+                epochs=4,
+                train_on="regdata",
+                test_on="dakshina",
+                augment=True,
+                model_name=model
+            )
+            ood_acc.append(cr['accuracy'])
+            print(cr)
+                
+            cr = finetune_xlm_roberta(
+                lr=2e-5,
+                epochs=4,
+                train_on="both",
+                test_on="both",
+                augment=True,
+                model_name=model
+            )
+            acc2.append(cr['accuracy'])
+            f1_s2.append(cr['colloquial']['f1-score'])
+            f1_l2.append(cr['literary']['f1-score'])
+            print(cr)
     
     fields = [
         "xlm-r",
