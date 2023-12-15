@@ -9,7 +9,7 @@ with open("res2.txt", "w") as f:
     acc, f1_s, f1_l, ood_acc = [], [], [], []
     acc2, f1_s2, f1_l2 = [], [], []
     
-    for model in ["xlm-roberta-base", "xlm-roberta-large"]:
+    for model in ["xlm-roberta-large", "xlm-roberta-base"]:
         for _ in range(5):
             cr = finetune_xlm_roberta(
                 lr=2e-5,

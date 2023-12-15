@@ -126,6 +126,7 @@ def finetune_xlm_roberta(
     augment=True,
     freeze=False,
     model_name="xlm-roberta-base",
+    upload=False
 ):
 
     # load model
@@ -293,8 +294,8 @@ def finetune_xlm_roberta(
     path = "models/xlm_roberta"
     model_path = f"{path}/model.pt"
     torch.save(model.state_dict(), model_path)
-    tokenizer.save_pretrained(path, push_to_hub=True, repo_id=f"aryaman/{model_name}-irumozhi")
-    model.save_pretrained(path, push_to_hub=True, repo_id=f"aryaman/{model_name}-irumozhi")
+    tokenizer.save_pretrained(path, push_to_hub=upload, repo_id=f"aryaman/{model_name}-irumozhi")
+    model.save_pretrained(path, push_to_hub=upload, repo_id=f"aryaman/{model_name}-irumozhi")
     return cr
 
 def featurise(
@@ -496,6 +497,7 @@ def main():
     parser.add_argument('--test_on', type=str, default="both", help='test on dakshina or regdata')
     parser.add_argument('--freeze', action='store_true', help='freeze model')
     parser.add_argument('--model_name', type=str, default="xlm-roberta-base", help='model name')
+    parser.add_argument('--upload', action='store_true', help='upload model to huggingface')
     args = parser.parse_args()
     print(vars(args))
 
@@ -521,7 +523,8 @@ def main():
             test_on=args.test_on,
             augment=not args.no_augment,
             freeze=args.freeze,
-            model_name=args.model_name
+            model_name=args.model_name,
+            upload=args.upload
         )
 
 
