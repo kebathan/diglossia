@@ -27,6 +27,7 @@ def visualise(batch_size=16):
         tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "right"
+        print(tokenizer.model_max_length)
         model = XLMRobertaForSequenceClassification.from_pretrained(model_name).to(dev)
         model.eval()
 
@@ -38,7 +39,7 @@ def visualise(batch_size=16):
             labels = datasets[name][1]
             for i in tqdm(range(0, len(dataset), batch_size)):
                 sentences = dataset[i:i+batch_size]
-                tokenized = tokenizer(sentences, return_tensors="pt", padding=True).to(dev)
+                tokenized = tokenizer(sentences, return_tensors="pt", padding=True, truncation=True).to(dev)
                 last = model.roberta(**tokenized).last_hidden_state
                 for j in range(len(sentences)):
                     data.append({
