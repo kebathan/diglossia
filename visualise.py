@@ -1,13 +1,14 @@
 from transformers import XLMRobertaForSequenceClassification, XLMRobertaTokenizer
 from classify import load_data
 from umap import UMAP
-from torch import no_grad
+from torch import no_grad, device, cuda
 from tqdm import tqdm
 import pandas as pd
 from plotnine import ggplot, aes, geom_point, facet_wrap, theme, element_blank
+import argparse
 
 @no_grad()
-def visualise():
+def visualise(batch_size=16):
     # load data
     datasets = {
         "irumozhi": load_data("regdata", "none", augment=False)[:2],
@@ -22,22 +23,22 @@ def visualise():
     for model_name in ["aryaman/xlm-roberta-base-irumozhi", "xlm-roberta-base"]:
         print(model_name)
         # load model
+        dev = device("cuda" if cuda.is_available() else "cpu")
         tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "right"
-        model = XLMRobertaForSequenceClassification.from_pretrained(model_name)
+        model = XLMRobertaForSequenceClassification.from_pretrained(model_name).to(dev)
         model.eval()
 
         # embed
         data = []
-        batch_size = 16
         for name in datasets:
             print(name)
             dataset = datasets[name][0]
             labels = datasets[name][1]
             for i in tqdm(range(0, len(dataset), batch_size)):
                 sentences = dataset[i:i+batch_size]
-                tokenized = tokenizer(sentences, return_tensors="pt", padding=True)
+                tokenized = tokenizer(sentences, return_tensors="pt", padding=True).to(dev)
                 last = model.roberta(**tokenized).last_hidden_state
                 for j in range(len(sentences)):
                     data.append({
@@ -72,7 +73,10 @@ def visualise():
     
 
 def main():
-    visualise()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--batch-size", type=int, default=16)
+    args = parser.parse_args()
+    visualise(args.batch_size)
 
 if __name__ == "__main__":
     main()
