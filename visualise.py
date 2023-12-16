@@ -52,9 +52,9 @@ def visualise(batch_size=16):
         
         # umap
         umap = UMAP(n_components=2)
-        embeddings = umap.fit_transform([d["embedding"] for d in data])
+        embeddings = umap.fit_transform([d["Embedding"] for d in data])
         for i, d in enumerate(data):
-            del d["embedding"]
+            del d["Embedding"]
             d["x"] = embeddings[i][0]
             d["y"] = embeddings[i][1]
         all_data.extend(data)
