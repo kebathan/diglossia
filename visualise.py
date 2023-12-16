@@ -43,7 +43,7 @@ def visualise(batch_size=16):
                 for j in range(len(sentences)):
                     data.append({
                         "Sentence": sentences[j],
-                        "Embedding": last[j, 0].detach().numpy(),
+                        "Embedding": last[j, 0].detach().cpu().numpy(),
                         "Label": labels[i] if name in ["irumozhi", "dakshina"] else "unknown",
                         "Dataset": name,
                         "Model": model_name.split('/')[-1]
