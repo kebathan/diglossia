@@ -3,10 +3,10 @@ from nltk import tokenize
 
 def tamToEng(string):
 
-    uyir = {"அ" : "a", "ஆ" : "ā",  "இ" : "i", "ஈ" : "ī", "உ" : "u", "ஊ" : "ū", "எ" : "ye", "ஏ" : "yē", "ஐ" : "ai", "ஒ" : "o", "ஓ" : "ō", "ஔ" : "au"}
-    mei = {"க" : ["ga", "ka"], "ங" : ["ṅa"], "ச" : ["sa", "cha"], "ஞ" : ["ña"], "ட" : ["ḍa", "ṭa"], "ண" : ["ṇa"], "த" : ["dha", "tha"], "ந" : ["na"], "ப" : ["ba", "pa"], "ம" : ["ma"], "ய" : ["ya"], "ல" : ["la"], "ர" : ["ra"], "வ" : ["va"], "ழ" : ["zha"], "ள" : ["ḷa"], "ற" : ["ṟa", "ṯṟa"], "ன" : ["ṉa"], "ஷ" : ["sha"], "ஸ" : ["sa"], "ஹ" : ["ha"], "ஜ" : ["ja"]}
-    marks = {"ா" : "ā", "ி" : "i", "ீ" : "ī", "ு" : "u", "ூ" : "ū", "ெ" : "e", "ே" : "ē", "ை" : "ai", "ொ" : "o", "ோ" : "ō", "ௌ" : "au"}
-    pulli = "்"
+    uyir = {"அ" : "a", "ஆ" : "aa",  "இ" : "i", "ஈ" : "ee", "உ" : "u", "ஊ" : "oo", "எ" : "e", "ஏ" : "ae", "ஐ" : "ai", "ஒ" : "o", "ஓ" : "o", "ஔ" : "au"}
+    mei = {"க" : ["ga", "ka"], "ங" : ["nga"], "ச" : ["sa", "cha"], "ஞ" : ["nya"], "ட" : ["da", "ta"], "ண" : ["na"], "த" : ["dha", "tha"], "ந" : ["na"], "ப" : ["ba", "pa"], "ம" : ["ma"], "ய" : ["ya"], "ல" : ["la"], "ர" : ["ra"], "வ" : ["va"], "ழ" : ["zha"], "ள" : ["la"], "ற" : ["ra", "tra"], "ன" : ["na"], "ஷ" : ["sha"], "ஸ" : ["sa"], "ஹ" : ["ha"], "ஜ" : ["ja"]}
+    marks = {"ா" : "aa", "ி" : "i", "ீ" : "ee", "ு" : "u", "ூ" : "oo", "ெ" : "e", "ே" : "ae", "ை" : "ai", "ொ" : "o", "ோ" : "o", "ௌ" : "au"}
+    pulli = "்" 
 
     vallinam = ["க", "ச", "ட", "த", "ப", "ற"]
 
@@ -43,12 +43,12 @@ def tamToEng(string):
 
                 # adding "ndr"
                 elif processed[i-2] == "ன" and letter == "ற":
-                    final[idx-1] = "ṉ"; final.append("ḏra")
+                    final[idx-1] = "n"; final.append("dra")
                     idx += 1
 
                 # adding "tr"
                 elif processed[i-2] == "ற" and letter == "ற":
-                    final[idx-1] = "ṯ"; final.append("ṟa")
+                    final[idx-1] = "t"; final.append("ra")
                     idx += 1
 
                 # geminated consonants
@@ -81,7 +81,7 @@ def tamToEng(string):
 
             # kutriyalugaram: shortening of the word-final "u"
             if letter == "ு" and (i == len(processed)-1 or processed[i+1] == " "):
-                final[idx-1] = final[idx-1][:-1] + "ŭ"
+                final[idx-1] = final[idx-1][:-1] + "u"
 
             # regular vowels
             else:
@@ -103,6 +103,7 @@ def tamToEng(string):
 
     # returns final string
     return "".join(final)
+
 
 file = open("/Users/ashok/Documents/Kabi/Funsies/Tamil_Articles_Corpus.txt", "r+")
 text = file.read()
